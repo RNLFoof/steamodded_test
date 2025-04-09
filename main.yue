@@ -59,9 +59,8 @@ export class TestBundle
     gather_events: (indentation=0) =>
         output = {}
         tally = {passed: 0, failed: 0}
-        local total_subprocesses
         output[] = ->
-            logger.info(n_tabs(indentation) .. "Running test bundle \"#{@name}\" (contains #{total_subprocesses} subtests)...")
+            logger.info(n_tabs(indentation) .. "Running test bundle \"#{@name}\" (contains #{#@tests} subtest(s))...")
 
         for _, test in ipairs(@tests)
             -- print("Gathering events for #{test.name}")
@@ -73,10 +72,10 @@ export class TestBundle
         output[] = ->
             all_passed = tally.failed == 0
             via = all_passed and logger.info or logger.error
+            print("UM?")
             via(n_tabs(indentation) .. "...done. Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
             return all_passed
         
-        total_subprocesses = #output - 2
         -- print("output of", @name, output)
         output
 

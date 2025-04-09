@@ -90,9 +90,8 @@ do
 				passed = 0,
 				failed = 0
 			}
-			local total_subprocesses
 			output[#output + 1] = function()
-				return logger.info(n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\" (contains " .. tostring(total_subprocesses) .. " subtests)...")
+				return logger.info(n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
 			end
 			for _, test in ipairs(self.tests) do
 				local events = test:gather_events(indentation + 1)
@@ -107,10 +106,10 @@ do
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
 				local via = all_passed and logger.info or logger.error
+				print("UM?")
 				via(n_tabs(indentation) .. "...done. Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
 				return all_passed
 			end
-			total_subprocesses = #output - 2
 			return output
 		end
 	}
