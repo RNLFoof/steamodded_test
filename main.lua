@@ -6,6 +6,20 @@ local logger = {
 	warn = print,
 	error = print
 }
+local run_ordered_events
+run_ordered_events = function(funcs)
+	local result = nil
+	for _, func in ipairs(funcs) do
+		G.E_MANAGER:add_event(Event({
+			func = function()
+				print("Running event " .. tostring(_) .. ", " .. tostring(func) .. " (" .. tostring(result) .. ")")
+				result = func(result)
+				print("\tResult was " .. tostring(result))
+				return true
+			end
+		}))
+	end
+end
 local n_tabs
 n_tabs = function(indentation)
 	return string.rep("\t", indentation)
@@ -14,24 +28,39 @@ local Test
 do
 	local _class_0
 	local _base_0 = {
-		run = function(self, indentation)
+		gather_events = function(self, indentation)
 			if indentation == nil then
 				indentation = 0
 			end
-			local result = self:func()
-			if result == false then
-				logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
-			end
-			return result
+			return {
+				function()
+					return self:prep()
+				end,
+				function(result)
+					return self:func(result)
+				end,
+				function(result)
+					if result == false then
+						logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
+					else
+						logger.info(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
+					end
+					return result
+				end
+			}
 		end
 	}
 	if _base_0.__index == nil then
 		_base_0.__index = _base_0
 	end
 	_class_0 = setmetatable({
-		__init = function(self, name, func)
+		__init = function(self, name, func, prep)
+			if prep == nil then
+				prep = function() end
+			end
 			self.name = name
 			self.func = func
+			self.prep = prep
 		end,
 		__base = _base_0,
 		__name = "Test"
@@ -51,24 +80,40 @@ local TestBundle
 do
 	local _class_0
 	local _base_0 = {
-		run = function(self, indentation)
+		run = function(self)
+			return run_ordered_events(self:gather_events())
+		end,
+		gather_events = function(self, indentation)
 			if indentation == nil then
 				indentation = 0
 			end
+			local output = { }
 			local tally = {
 				passed = 0,
 				failed = 0
 			}
-			logger.info(n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\"...")
-			for _, test in ipairs(self.tests) do
-				local result = test:run(indentation + 1)
-				local _update_0 = result and "passed" or "failed"
-				tally[_update_0] = tally[_update_0] + 1
+			local total_subprocesses
+			output[#output + 1] = function()
+				return logger.info(n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\" (contains " .. tostring(total_subprocesses) .. " subtests)...")
 			end
-			local all_passed = tally.failed == 0
-			local via = all_passed and logger.info or logger.error
-			via(n_tabs(indentation) .. "... done. Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
-			return all_passed
+			for _, test in ipairs(self.tests) do
+				local events = test:gather_events(indentation + 1)
+				for _, event in ipairs(events) do
+					output[#output + 1] = event
+				end
+				output[#output + 1] = function(result)
+					local _update_0 = result and "passed" or "failed"
+					tally[_update_0] = tally[_update_0] + 1
+				end
+			end
+			output[#output + 1] = function()
+				local all_passed = tally.failed == 0
+				local via = all_passed and logger.info or logger.error
+				via(n_tabs(indentation) .. "...done. Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
+				return all_passed
+			end
+			total_subprocesses = #output - 2
+			return output
 		end
 	}
 	if _base_0.__index == nil then
@@ -107,9 +152,10 @@ end
 init()
 local create_state
 create_state = function(kwargs)
-	return G.FUNCS.start_run(nil, {
+	G.FUNCS.start_run(nil, {
 		stake = 1
 	})
+	return new_round()
 end
 _module_0["create_state"] = create_state
 local success, dpAPI = pcall(require, "debugplus-api")

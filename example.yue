@@ -1,7 +1,10 @@
 testing = assert(SMODS.load_file("libs\\steamodded_test\\main.lua"))()
 
+-- G.steamodded_tests.tests[] = testing.Test("Always passes", -> true)
+-- G.steamodded_tests.tests[] = testing.Test("Always fails", -> false)
+
 G.steamodded_tests.tests[] = testing.TestBundle("Example tests", {
-    
+
         testing.Test("Always passes", -> true)
         testing.Test("Always fails", -> false)
 

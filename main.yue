@@ -7,21 +7,45 @@ local logger = { -- Placeholder logger, for when DebugPlus isn't available
     error: print
 }
 
--- Meat and potatoes
+-- Internal stuff
+
+run_ordered_events = (funcs) ->
+    local result = nil
+    for _, func in ipairs(funcs)
+        G.E_MANAGER\add_event(Event({
+            func: ->
+                print("Running event #{_}, #{func} (#{result})")
+                result = func(result)
+                print("\tResult was #{result}")
+                true
+        }))
 
 n_tabs = (indentation) ->
     string.rep("\t", indentation)
 
+-- Meat and potatoes
+
 export class Test
-    new: (name, func) =>
+    new: (name, func, prep=->) =>
         @name = name
         @func = func
+        @prep = prep
     
-    run: (indentation=0) =>
-        result = @func()
-        if result == false
-            logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
-        result
+    gather_events: (indentation=0) =>
+        {
+            -> 
+                -- print("#{@name} prep")
+                @prep(),
+            (result) -> 
+                -- print("#{@name} func")
+                @func(result),
+            (result) -> 
+                if result == false
+                    logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
+                else
+                    logger.info(n_tabs(indentation) .. "\tTest \"#{@name}\" passed! :)")
+                result
+        }
 
 
 export class TestBundle
@@ -29,20 +53,40 @@ export class TestBundle
         @name = name
         @tests = tests
     
-    run: (indentation=0) =>
+    run: =>
+        run_ordered_events(self\gather_events())
+
+    gather_events: (indentation=0) =>
+        output = {}
         tally = {passed: 0, failed: 0}
-        logger.info(n_tabs(indentation) .. "Running test bundle \"#{@name}\"...")
+        local total_subprocesses
+        output[] = ->
+            logger.info(n_tabs(indentation) .. "Running test bundle \"#{@name}\" (contains #{total_subprocesses} subtests)...")
+
         for _, test in ipairs(@tests)
-            result = test\run(indentation+1)
-            tally[result and "passed" or "failed"] += 1
-        all_passed = tally.failed == 0
-        via = all_passed and logger.info or logger.error
-        via(n_tabs(indentation) .. "... done. Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
-        return all_passed
+            -- print("Gathering events for #{test.name}")
+            events = test\gather_events(indentation+1)
+            for _, event in ipairs(events)
+                output[] = event
+            output[] = (result) -> tally[result and "passed" or "failed"] += 1
+        
+        output[] = ->
+            all_passed = tally.failed == 0
+            via = all_passed and logger.info or logger.error
+            via(n_tabs(indentation) .. "...done. Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+            return all_passed
+        
+        total_subprocesses = #output - 2
+        -- print("output of", @name, output)
+        output
 
 
 export run_all_tests =  ->
-    G.steamodded_tests\run()
+    -- run_ordered_events(G.steamodded_tests.tests[1]\gather_events!)
+    -- print()
+    -- print()
+    -- print()
+    G.steamodded_tests\run!
         
 init = () ->
     G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
@@ -50,10 +94,12 @@ init()
 
 -- For actually making useful tests
 
+
 export create_state = (kwargs) ->
     G.FUNCS.start_run(nil, {
         stake: 1
     })
+    new_round()
 
 -- DebugPlus stuff
 
