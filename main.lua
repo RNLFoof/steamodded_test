@@ -6,6 +6,16 @@ local logger = {
 	warn = print,
 	error = print
 }
+local concat_lists
+concat_lists = function(list_of_lists)
+	local output = { }
+	for _, list in ipairs(list_of_lists) do
+		for _, item in ipairs(list) do
+			output[#output + 1] = item
+		end
+	end
+	return output
+end
 local run_ordered_events
 run_ordered_events = function(funcs, previous_result)
 	if previous_result == nil then
@@ -17,6 +27,21 @@ run_ordered_events = function(funcs, previous_result)
 	local first_func = funcs[1]
 	local remaining_funcs
 	do
+		local _accum_0 = { }
+		local _len_0 = 1
+		for _index_0 = 2, #funcs do
+			local func = funcs[_index_0]
+			_accum_0[_len_0] = func
+			_len_0 = _len_0 + 1
+		end
+		remaining_funcs = _accum_0
+	end
+	if type(first_func) == "table" then
+		funcs = concat_lists({
+			first_func,
+			remaining_funcs
+		})
+		first_func = funcs[1]
 		local _accum_0 = { }
 		local _len_0 = 1
 		for _index_0 = 2, #funcs do
@@ -47,35 +72,38 @@ do
 			if indentation == nil then
 				indentation = 0
 			end
-			return {
-				function()
-					return self:prep()
-				end,
-				function(result)
-					return self:func(result)
-				end,
-				function(result)
-					if result == false then
-						logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
-					else
-						logger.info(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
-					end
-					return result
+			local output = nil
+			print(type(self.funcs))
+			if type(self.funcs) == "function" then
+				print(tostring(self.name) .. ": singlet")
+				output = {
+					self.funcs
+				}
+			else
+				print(tostring(self.name) .. ": plural")
+				output = self.funcs
+			end
+			output[#output + 1] = function(result)
+				if result == false then
+					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
+				else
+					logger.info(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
 				end
-			}
+				return result
+			end
+			return output
 		end
 	}
 	if _base_0.__index == nil then
 		_base_0.__index = _base_0
 	end
 	_class_0 = setmetatable({
-		__init = function(self, name, func, prep)
+		__init = function(self, name, funcs, prep)
 			if prep == nil then
 				prep = function() end
 			end
 			self.name = name
-			self.func = func
-			self.prep = prep
+			self.funcs = funcs
 		end,
 		__base = _base_0,
 		__name = "Test"
@@ -164,14 +192,35 @@ init = function()
 	end
 end
 init()
-local create_state
-create_state = function(kwargs)
-	G.FUNCS.start_run(nil, {
-		stake = 1
-	})
-	return new_round()
+local waiting_steps
+waiting_steps = function(how_many)
+	if how_many == nil then
+		how_many = 1
+	end
+	local output = { }
+	for _ = 1, how_many do
+		output[#output + 1] = function()
+			return nil
+		end
+	end
+	return output
 end
-_module_0["create_state"] = create_state
+_module_0["waiting_steps"] = waiting_steps
+local create_state_steps
+create_state_steps = function(kwargs)
+	return {
+		function()
+			return G.FUNCS.start_run(nil, {
+				stake = 1
+			})
+		end,
+		waiting_steps(5),
+		function()
+			return new_round()
+		end
+	}
+end
+_module_0["create_state_steps"] = create_state_steps
 local success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1) then
 	local debugplus = dpAPI.registerID("steamodded_test")
@@ -182,7 +231,7 @@ if success and dpAPI.isVersionCompatible(1) then
 		desc = "IDK man!!! It runs your tests and tells you the results!!",
 		exec = function(args, rawArgs, dp)
 			run_all_tests()
-			return "ok done ig"
+			return "here we go :)"
 		end
 	})
 end

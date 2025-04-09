@@ -9,11 +9,28 @@ logger = { -- Placeholder logger, for when DebugPlus isn't available
 
 -- Internal stuff
 
+concat_lists = (list_of_lists) ->
+    output = {}
+    for _, list in ipairs(list_of_lists)
+        for _, item in ipairs(list)
+            output[] = item
+    return output
+
 run_ordered_events = (funcs, previous_result=nil) ->
     if #funcs == 0
         return
     first_func = funcs[1]
     remaining_funcs = [func for func in *funcs[2,]]
+    
+    if type(first_func) == "table"
+        -- print("Unpacking #{first_func}")
+        funcs = concat_lists({
+            first_func,
+            remaining_funcs
+        })
+        first_func = funcs[1]
+        remaining_funcs = [func for func in *funcs[2,]]
+
     G.E_MANAGER\add_event(Event({
         no_delete: true
         func: ->
@@ -30,26 +47,26 @@ n_tabs = (indentation) ->
 -- Meat and potatoes
 
 export class Test
-    new: (name, func, prep=->) =>
+    new: (name, funcs, prep=->) =>
         @name = name
-        @func = func
-        @prep = prep
+        @funcs = funcs  -- Can be a single function or an array of them
     
     gather_events: (indentation=0) =>
-        {
-            -> 
-                -- print("#{@name} prep")
-                @prep(),
-            (result) -> 
-                -- print("#{@name} func")
-                @func(result),
-            (result) -> 
+        output = nil
+        print(type(@funcs))
+        if type(@funcs) == "function"
+            print("#{@name}: singlet")
+            output = {@funcs}
+        else
+            print("#{@name}: plural")
+            output = @funcs
+        output[] = (result) -> 
                 if result == false
                     logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
                 else
                     logger.info(n_tabs(indentation) .. "\tTest \"#{@name}\" passed! :)")
                 result
-        }
+        return output
 
 
 export class TestBundle
@@ -95,13 +112,21 @@ init = () ->
 init()
 
 -- For actually making useful tests
+export waiting_steps = (how_many=1) ->
+    output = []
+    for _=1,how_many
+        output[] = -> nil
+    output
 
 
-export create_state = (kwargs) ->
-    G.FUNCS.start_run(nil, {
-        stake: 1
-    })
-    new_round()
+export create_state_steps = (kwargs) ->
+    {
+        -> G.FUNCS.start_run(nil, {
+            stake: 1
+        }),
+        waiting_steps(5)
+        -> new_round(),
+    }
 
 -- DebugPlus stuff
 
@@ -116,5 +141,5 @@ if success and dpAPI.isVersionCompatible(1)
         desc: "IDK man!!! It runs your tests and tells you the results!!",
         exec: (args, rawArgs, dp) ->
             run_all_tests()
-            "ok done ig"
+            "here we go :)"
 })

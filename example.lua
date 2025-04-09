@@ -6,5 +6,8 @@ _obj_0[#_obj_0 + 1] = testing.TestBundle("Example tests", {
 	end),
 	testing.Test("Always fails", function()
 		return false
-	end)
+	end),
+	testing.TestBundle("Main game tests", {
+		testing.Test("Scoring an Ace", testing.create_state_steps())
+	})
 })
