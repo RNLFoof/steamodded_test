@@ -12,9 +12,7 @@ run_ordered_events = function(funcs)
 	for _, func in ipairs(funcs) do
 		G.E_MANAGER:add_event(Event({
 			func = function()
-				print("Running event " .. tostring(_) .. ", " .. tostring(func) .. " (" .. tostring(result) .. ")")
 				result = func(result)
-				print("\tResult was " .. tostring(result))
 				return true
 			end
 		}))

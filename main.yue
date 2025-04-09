@@ -14,10 +14,10 @@ run_ordered_events = (funcs) ->
     for _, func in ipairs(funcs)
         G.E_MANAGER\add_event(Event({
             func: ->
-                print("Running event #{_}, #{func} (#{result})")
+                -- print("Running event #{_}, #{func} (#{result})")
                 result = func(result)
-                print("\tResult was #{result}")
-                true
+                -- print("\tResult was #{result}")
+                true  -- So that the event succeeds
         }))
 
 n_tabs = (indentation) ->
