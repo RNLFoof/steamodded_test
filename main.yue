@@ -1,5 +1,5 @@
 
-local logger = { -- Placeholder logger, for when DebugPlus isn't available
+logger = { -- Placeholder logger, for when DebugPlus isn't available
     log:   print
     debug: print
     info:  print
@@ -9,16 +9,20 @@ local logger = { -- Placeholder logger, for when DebugPlus isn't available
 
 -- Internal stuff
 
-run_ordered_events = (funcs) ->
-    local result = nil
-    for _, func in ipairs(funcs)
-        G.E_MANAGER\add_event(Event({
-            func: ->
-                -- print("Running event #{_}, #{func} (#{result})")
-                result = func(result)
-                -- print("\tResult was #{result}")
-                true  -- So that the event succeeds
-        }))
+run_ordered_events = (funcs, previous_result=nil) ->
+    if #funcs == 0
+        return
+    first_func = funcs[1]
+    remaining_funcs = [func for func in *funcs[2,]]
+    G.E_MANAGER\add_event(Event({
+        no_delete: true
+        func: ->
+            -- logger.debug("Running event #{_}, #{func} (#{previous_result})")
+            result = first_func(previous_result)
+            -- logger.debug("\tResult was #{result}")
+            run_ordered_events(remaining_funcs, result)
+            true  -- So that the event succeeds
+    }))
 
 n_tabs = (indentation) ->
     string.rep("\t", indentation)
@@ -68,15 +72,14 @@ export class TestBundle
             for _, event in ipairs(events)
                 output[] = event
             output[] = (result) -> tally[result and "passed" or "failed"] += 1
-        
+
         output[] = ->
             all_passed = tally.failed == 0
             via = all_passed and logger.info or logger.error
-            print("UM?")
             via(n_tabs(indentation) .. "...done. Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
             return all_passed
         
-        -- print("output of", @name, output)
+        print("output of", @name, output)
         output
 
 

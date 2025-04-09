@@ -7,16 +7,33 @@ local logger = {
 	error = print
 }
 local run_ordered_events
-run_ordered_events = function(funcs)
-	local result = nil
-	for _, func in ipairs(funcs) do
-		G.E_MANAGER:add_event(Event({
-			func = function()
-				result = func(result)
-				return true
-			end
-		}))
+run_ordered_events = function(funcs, previous_result)
+	if previous_result == nil then
+		previous_result = nil
 	end
+	if #funcs == 0 then
+		return
+	end
+	local first_func = funcs[1]
+	local remaining_funcs
+	do
+		local _accum_0 = { }
+		local _len_0 = 1
+		for _index_0 = 2, #funcs do
+			local func = funcs[_index_0]
+			_accum_0[_len_0] = func
+			_len_0 = _len_0 + 1
+		end
+		remaining_funcs = _accum_0
+	end
+	return G.E_MANAGER:add_event(Event({
+		no_delete = true,
+		func = function()
+			local result = first_func(previous_result)
+			run_ordered_events(remaining_funcs, result)
+			return true
+		end
+	}))
 end
 local n_tabs
 n_tabs = function(indentation)
@@ -106,10 +123,10 @@ do
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
 				local via = all_passed and logger.info or logger.error
-				print("UM?")
 				via(n_tabs(indentation) .. "...done. Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
 				return all_passed
 			end
+			print("output of", self.name, output)
 			return output
 		end
 	}
