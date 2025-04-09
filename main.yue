@@ -1,0 +1,71 @@
+
+local logger = { -- Placeholder logger, for when DebugPlus isn't available
+    log:   print
+    debug: print
+    info:  print
+    warn:  print
+    error: print
+}
+
+-- Meat and potatoes
+
+n_tabs = (indentation) ->
+    string.rep("\t", indentation)
+
+export class Test
+    new: (name, func) =>
+        @name = name
+        @func = func
+    
+    run: (indentation=0) =>
+        result = @func()
+        if result == false
+            logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
+        result
+
+
+export class TestBundle
+    new: (name, tests) =>
+        @name = name
+        @tests = tests
+    
+    run: (indentation=0) =>
+        tally = {passed: 0, failed: 0}
+        logger.info(n_tabs(indentation) .. "Running test bundle \"#{@name}\"...")
+        for _, test in ipairs(@tests)
+            result = test\run(indentation+1)
+            tally[result and "passed" or "failed"] += 1
+        all_passed = tally.failed == 0
+        via = all_passed and logger.info or logger.error
+        via(n_tabs(indentation) .. "Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+        return all_passed
+
+
+export run_all_tests =  ->
+    G.steamodded_tests\run()
+        
+init = () ->
+    G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
+init()
+
+
+export create_state = (kwargs) ->
+    G.FUNCS.start_run(nil, {
+        stake: 1
+    })
+
+-- DebugPlus stuff
+
+success, dpAPI = pcall(require, "debugplus-api")
+if success and dpAPI.isVersionCompatible(1) -- Make sure DebugPlus is available and compatible
+    local debugplus = dpAPI.registerID("steamodded_debug")
+    logger = debugplus.logger -- Provides the logger object
+
+    debugplus.addCommand({ -- register a command
+        name: "test",
+        shortDesc: "Testing command",
+        desc: "This command is an example to get you familar with how commands work",
+        exec: (args, rawArgs, dp) ->
+            run_all_tests()
+            "ok done ig"
+})
