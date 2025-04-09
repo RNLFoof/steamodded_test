@@ -37,7 +37,7 @@ export class TestBundle
             tally[result and "passed" or "failed"] += 1
         all_passed = tally.failed == 0
         via = all_passed and logger.info or logger.error
-        via(n_tabs(indentation) .. "Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+        via(n_tabs(indentation) .. "... done. Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
         return all_passed
 
 
@@ -48,6 +48,7 @@ init = () ->
     G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
 init()
 
+-- For actually making useful tests
 
 export create_state = (kwargs) ->
     G.FUNCS.start_run(nil, {
@@ -57,14 +58,14 @@ export create_state = (kwargs) ->
 -- DebugPlus stuff
 
 success, dpAPI = pcall(require, "debugplus-api")
-if success and dpAPI.isVersionCompatible(1) -- Make sure DebugPlus is available and compatible
-    local debugplus = dpAPI.registerID("steamodded_debug")
-    logger = debugplus.logger -- Provides the logger object
+if success and dpAPI.isVersionCompatible(1)
+    local debugplus = dpAPI.registerID("steamodded_test")
+    logger = debugplus.logger
 
-    debugplus.addCommand({ -- register a command
+    debugplus.addCommand({
         name: "test",
-        shortDesc: "Testing command",
-        desc: "This command is an example to get you familar with how commands work",
+        shortDesc: "Runs all tests.",
+        desc: "IDK man!!! It runs your tests and tells you the results!!",
         exec: (args, rawArgs, dp) ->
             run_all_tests()
             "ok done ig"
