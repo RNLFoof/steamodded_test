@@ -109,6 +109,7 @@ do
 			output[#output + 1] = function(result)
 				if result == "FUCK!!!" then
 					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" errored! See above...")
+					result = false
 				elseif result == false then
 					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
 				elseif result == true then

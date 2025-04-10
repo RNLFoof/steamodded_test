@@ -80,6 +80,7 @@ export class Test
         output[] = (result) -> 
                 if result == "FUCK!!!"
                     logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" errored! See above...")
+                    result = false
                 elseif result == false
                     logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
                 elseif result == true
