@@ -3,27 +3,26 @@ testing = assert(SMODS.load_file("libs\\steamodded_test\\main.lua"))()
 G.steamodded_tests.tests[] = testing.TestBundle("Example tests", {
 
         testing.TestBundle("Basic tests", {
-            testing.Test("Always passes", -> true)
-            testing.Test("Always fails", -> false)
-            testing.Test("Always confuses the tester", -> nil)
-            testing.Test("Always errors", -> assert(false))
+            testing.Test("Always passes", () -> true)
+            testing.Test("Always fails", () -> false)
+            testing.Test("Always confuses the tester", () -> nil)
+            testing.Test("Always errors", () -> assert(false))
         }),
 
         testing.TestBundle("Main game tests", {
 
                 testing.Test("Scoring an Ace", {
                     testing.create_state_steps(),
-                    -> testing.play_hand({"A"}),
-                    -> testing.assert_hand_scored(16)
+                    () -> testing.play_hand({"A"}),
+                    () -> testing.assert_hand_scored(16)
                 }),
 
                 testing.Test("Scoring an Ace (overzealous)", {
                     testing.create_state_steps(),
-                    -> testing.play_hand({"A"}),
-                    -> testing.assert_hand_scored(99999)
+                    () -> testing.play_hand({"A"}),
+                    () -> testing.assert_hand_scored(99999)
                 })
-            }
-        )
-
+            
+        })
     }
 )
