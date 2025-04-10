@@ -16,6 +16,18 @@ concat_lists = function(list_of_lists)
 	end
 	return output
 end
+local put_in_array_if_alone
+put_in_array_if_alone = function(this_guy)
+	local output = nil
+	if type(this_guy) == "function" then
+		output = {
+			this_guy
+		}
+	else
+		output = this_guy
+	end
+	return output
+end
 local run_ordered_events
 run_ordered_events = function(funcs, previous_result, retry_count)
 	if previous_result == nil then
@@ -66,7 +78,15 @@ run_ordered_events = function(funcs, previous_result, retry_count)
 				end
 				run_ordered_events(funcs, previous_result, retry_count + 1)
 			else
-				local result = first_func(previous_result)
+				local result = nil
+				local success
+				success, result = pcall(function()
+					return first_func(previous_result)
+				end)
+				if not success then
+					logger.error(result)
+					result = "FUCK!!!"
+				end
 				run_ordered_events(remaining_funcs, result)
 			end
 			return true
@@ -85,22 +105,16 @@ do
 			if indentation == nil then
 				indentation = 0
 			end
-			local output = nil
-			print(type(self.funcs))
-			if type(self.funcs) == "function" then
-				print(tostring(self.name) .. ": singlet")
-				output = {
-					self.funcs
-				}
-			else
-				print(tostring(self.name) .. ": plural")
-				output = self.funcs
-			end
+			local output = put_in_array_if_alone(self.funcs)
 			output[#output + 1] = function(result)
-				if result == false then
+				if result == "FUCK!!!" then
+					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" errored! See above...")
+				elseif result == false then
 					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
-				else
+				elseif result == true then
 					logger.info(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
+				else
+					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" returned neither true nor false, but instead " .. tostring(result) .. "? :S")
 				end
 				return result
 			end
@@ -153,6 +167,9 @@ do
 			end
 			for _, test in ipairs(self.tests) do
 				local events = test:gather_events(indentation + 1)
+				output[#output + 1] = function()
+					return G.E_MANAGER:clear_queue()
+				end
 				for _, event in ipairs(events) do
 					output[#output + 1] = event
 				end
@@ -164,10 +181,9 @@ do
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
 				local via = all_passed and logger.info or logger.error
-				via(n_tabs(indentation) .. "...done. Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
+				via(n_tabs(indentation) .. "...done with \"" .. tostring(self.name) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
 				return all_passed
 			end
-			print("output of", self.name, output)
 			return output
 		end
 	}
@@ -345,23 +361,48 @@ create_state_steps = function(kwargs)
 	}
 end
 _module_0["create_state_steps"] = create_state_steps
-local play_hand
-play_hand = function()
-	local _obj_0 = G.deck.config
-	_obj_0.card_limit = _obj_0.card_limit + 1
-	local card
-	do
-		local _with_0 = playing_card_from_string("A")
-		_with_0:add_to_deck()
-		card = _with_0
+local empty_hand
+empty_hand = function()
+	G.hand.cards = { }
+end
+_module_0["empty_hand"] = empty_hand
+local add_cards_to_hand
+add_cards_to_hand = function(playing_cards, select_them)
+	if select_them == nil then
+		select_them = false
 	end
-	local _obj_1 = G.deck.config
-	_obj_1.card_limit = _obj_1.card_limit + 1
-	table.insert(G.playing_cards, card)
-	G.hand:emplace(card)
-	return print(card)
+	for _, card in ipairs(playing_cards) do
+		if type(card) == "string" then
+			card = playing_card_from_string(card)
+		end
+		card:add_to_deck()
+		local _obj_0 = G.deck.config
+		_obj_0.card_limit = _obj_0.card_limit + 1
+		table.insert(G.playing_cards, card)
+		G.hand:emplace(card)
+		if select_them then
+			card:click()
+		end
+	end
+end
+_module_0["add_cards_to_hand"] = add_cards_to_hand
+local play_hand
+play_hand = function(playing_cards, kwargs)
+	if kwargs == nil then
+		kwargs = { }
+	end
+	kwargs.hold = kwargs.hold or { }
+	empty_hand()
+	add_cards_to_hand(playing_cards, true)
+	return G.FUNCS.play_cards_from_highlighted()
 end
 _module_0["play_hand"] = play_hand
+local assert_hand_scored
+assert_hand_scored = function(expected_chips)
+	local chips = G.GAME.chips
+	return assert(chips == expected_chips, "Expected " .. tostring(expected_chips) .. " chips, was " .. tostring(chips))
+end
+_module_0["assert_hand_scored"] = assert_hand_scored
 local success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1) then
 	local debugplus = dpAPI.registerID("steamodded_test")

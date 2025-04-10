@@ -7,10 +7,34 @@ _obj_0[#_obj_0 + 1] = testing.TestBundle("Example tests", {
 	testing.Test("Always fails", function()
 		return false
 	end),
+	testing.Test("Always confuses the tester", function()
+		return nil
+	end),
+	testing.Test("Always errors", function()
+		return assert(false)
+	end),
 	testing.TestBundle("Main game tests", {
 		testing.Test("Scoring an Ace", {
 			testing.create_state_steps(),
-			testing.play_hand
+			function()
+				return testing.play_hand({
+					"A"
+				})
+			end,
+			function()
+				return testing.assert_hand_scored(16)
+			end
+		}),
+		testing.Test("Scoring an Ace (overzealous)", {
+			testing.create_state_steps(),
+			function()
+				return testing.play_hand({
+					"A"
+				})
+			end,
+			function()
+				return testing.assert_hand_scored(99999)
+			end
 		})
 	})
 })

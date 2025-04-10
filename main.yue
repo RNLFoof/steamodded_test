@@ -16,6 +16,15 @@ concat_lists = (list_of_lists) ->
             output[] = item
     return output
 
+put_in_array_if_alone = (this_guy) ->
+    output = nil
+    if type(this_guy) == "function"
+        output = {this_guy}
+    else
+        output = this_guy
+    output
+
+
 run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
     if #funcs == 0
         return
@@ -46,7 +55,11 @@ run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
             -- Actually do it :)
             else
                 -- logger.debug("Running event #{_}, #{func} (#{previous_result})")
-                result = first_func(previous_result)
+                result = nil
+                success, result = pcall(-> first_func(previous_result))
+                if not success
+                    logger.error(result)
+                    result = "FUCK!!!"
                 -- logger.debug("\tResult was #{result}")
                 run_ordered_events(remaining_funcs, result)
             true  -- So that the event succeeds
@@ -63,19 +76,16 @@ export class Test
         @funcs = funcs  -- Can be a single function or an array of them
     
     gather_events: (indentation=0) =>
-        output = nil
-        print(type(@funcs))
-        if type(@funcs) == "function"
-            print("#{@name}: singlet")
-            output = {@funcs}
-        else
-            print("#{@name}: plural")
-            output = @funcs
+        output = put_in_array_if_alone(@funcs)
         output[] = (result) -> 
-                if result == false
+                if result == "FUCK!!!"
+                    logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" errored! See above...")
+                elseif result == false
                     logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
-                else
+                elseif result == true
                     logger.info(n_tabs(indentation) .. "\tTest \"#{@name}\" passed! :)")
+                else
+                    logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" returned neither true nor false, but instead #{result}? :S")
                 result
         return output
 
@@ -97,6 +107,7 @@ export class TestBundle
         for _, test in ipairs(@tests)
             -- print("Gathering events for #{test.name}")
             events = test\gather_events(indentation+1)
+            output[] = -> G.E_MANAGER\clear_queue()
             for _, event in ipairs(events)
                 output[] = event
             output[] = (result) -> tally[result and "passed" or "failed"] += 1
@@ -104,10 +115,9 @@ export class TestBundle
         output[] = ->
             all_passed = tally.failed == 0
             via = all_passed and logger.info or logger.error
-            via(n_tabs(indentation) .. "...done. Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+            via(n_tabs(indentation) .. "...done with \"#{@name}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
             return all_passed
         
-        print("output of", @name, output)
         output
 
 
@@ -214,21 +224,37 @@ export create_state_steps = (kwargs={}) ->
             stake: kwargs.stake,
             seed:  kwargs.seed,
         }),
+        -- -> G.hand.config.card_limit = 1,
         -> new_round(),
+        -- ->
+            -- G.deck.config.card_limit = 0
+            -- G.hand.cards = {}
     }
 
-export play_hand = ->
-    G.deck.config.card_limit += 1
+export empty_hand = ->
+    G.hand.cards = {}
 
-    card = with playing_card_from_string("A")
-        \add_to_deck()
-    G.deck.config.card_limit += 1
-    table.insert(G.playing_cards, card)
-    G.hand\emplace(card)
-        -- \set_card_area(G.hand)
-        --\click!
-    print(card)
+export add_cards_to_hand = (playing_cards, select_them=false) ->
+    for _, card in ipairs(playing_cards)
+        if type(card) == "string"
+            card = playing_card_from_string(card)
+        card\add_to_deck()
+        G.deck.config.card_limit += 1
+        table.insert(G.playing_cards, card)
+        G.hand\emplace(card)
+        if select_them
+            card\click!
 
+export play_hand = (playing_cards, kwargs={})->
+    kwargs.hold = kwargs.hold or {}
+
+    empty_hand()
+    add_cards_to_hand(playing_cards, true)
+    G.FUNCS.play_cards_from_highlighted()
+
+export assert_hand_scored = (expected_chips) ->
+    chips = G.GAME.chips
+    assert(chips == expected_chips, "Expected #{expected_chips} chips, was #{chips}")
 
 -- DebugPlus stuff
 
