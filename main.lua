@@ -17,9 +17,12 @@ concat_lists = function(list_of_lists)
 	return output
 end
 local run_ordered_events
-run_ordered_events = function(funcs, previous_result)
+run_ordered_events = function(funcs, previous_result, retry_count)
 	if previous_result == nil then
 		previous_result = nil
+	end
+	if retry_count == nil then
+		retry_count = 0
 	end
 	if #funcs == 0 then
 		return
@@ -54,8 +57,18 @@ run_ordered_events = function(funcs, previous_result)
 	return G.E_MANAGER:add_event(Event({
 		no_delete = true,
 		func = function()
-			local result = first_func(previous_result)
-			run_ordered_events(remaining_funcs, result)
+			local retry_danger_threshold = 100
+			local event_count = #G.E_MANAGER.queues.base
+			local event_tolerance = (retry_count - 1) / retry_danger_threshold + 2
+			if event_count > event_tolerance then
+				if retry_count > 0 and retry_count % retry_danger_threshold == 0 then
+					logger.warn("Hit " .. tostring(retry_count) .. " retries, there's probably something stuck in the queue? (The queue has " .. tostring(#G.E_MANAGER.queues.base) .. " entries) (raising the remaining event tolerance to " .. tostring(math.ceil(event_tolerance)) .. ")")
+				end
+				run_ordered_events(funcs, previous_result, retry_count + 1)
+			else
+				local result = first_func(previous_result)
+				run_ordered_events(remaining_funcs, result)
+			end
 			return true
 		end
 	}))
@@ -182,6 +195,7 @@ end
 _module_0["TestBundle"] = TestBundle
 local run_all_tests
 run_all_tests = function()
+	G.E_MANAGER:clear_queue()
 	return G.steamodded_tests:run()
 end
 _module_0["run_all_tests"] = run_all_tests
@@ -192,6 +206,111 @@ init = function()
 	end
 end
 init()
+local playing_card_from_string
+playing_card_from_string = function(input)
+	local suit = "S"
+	local rank = "T"
+	input = string.lower(input)
+	local if_contains_then
+	if_contains_then = function(searching_for, func)
+		local count
+		input, count = string.gsub(input, searching_for, "")
+		if count > 0 then
+			return func()
+		end
+	end
+	if_contains_then("spades", function()
+		suit = "S"
+	end)
+	if_contains_then("s", function()
+		suit = "S"
+	end)
+	if_contains_then("♠", function()
+		suit = "S"
+	end)
+	if_contains_then("♤", function()
+		suit = "S"
+	end)
+	if_contains_then("hearts", function()
+		suit = "H"
+	end)
+	if_contains_then("h", function()
+		suit = "H"
+	end)
+	if_contains_then("♥", function()
+		suit = "H"
+	end)
+	if_contains_then("♡", function()
+		suit = "H"
+	end)
+	if_contains_then("clubs", function()
+		suit = "C"
+	end)
+	if_contains_then("c", function()
+		suit = "C"
+	end)
+	if_contains_then("♣", function()
+		suit = "C"
+	end)
+	if_contains_then("♧", function()
+		suit = "C"
+	end)
+	if_contains_then("diamonds", function()
+		suit = "D"
+	end)
+	if_contains_then("d", function()
+		suit = "D"
+	end)
+	if_contains_then("♦", function()
+		suit = "D"
+	end)
+	if_contains_then("♢", function()
+		suit = "D"
+	end)
+	if_contains_then("ace", function()
+		rank = "A"
+	end)
+	if_contains_then("a", function()
+		rank = "A"
+	end)
+	if_contains_then("king", function()
+		rank = "K"
+	end)
+	if_contains_then("k", function()
+		rank = "K"
+	end)
+	if_contains_then("queen", function()
+		rank = "Q"
+	end)
+	if_contains_then("q", function()
+		rank = "Q"
+	end)
+	if_contains_then("jack", function()
+		rank = "J"
+	end)
+	if_contains_then("j", function()
+		rank = "J"
+	end)
+	if_contains_then("ten", function()
+		rank = "T"
+	end)
+	if_contains_then("10", function()
+		rank = "T"
+	end)
+	if_contains_then("t", function()
+		rank = "T"
+	end)
+	local a, b = string.find(input, "%d")
+	if a ~= nil then
+		rank = string.sub(input, a, b)
+	end
+	local card = Card(G.play.T.x + G.play.T.w / 2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.c_base, {
+		playing_card = G.playing_card
+	})
+	card:set_base(G.P_CARDS[tostring(suit) .. "_" .. tostring(rank)])
+	return card
+end
+_module_0["playing_card_from_string"] = playing_card_from_string
 local waiting_steps
 waiting_steps = function(how_many)
 	if how_many == nil then
@@ -208,19 +327,41 @@ end
 _module_0["waiting_steps"] = waiting_steps
 local create_state_steps
 create_state_steps = function(kwargs)
+	if kwargs == nil then
+		kwargs = { }
+	end
+	kwargs.stake = kwargs.stake or 1
+	kwargs.seed = kwargs.seed or "TUTORIAL"
 	return {
 		function()
 			return G.FUNCS.start_run(nil, {
-				stake = 1
+				stake = kwargs.stake,
+				seed = kwargs.seed
 			})
 		end,
-		waiting_steps(5),
 		function()
 			return new_round()
 		end
 	}
 end
 _module_0["create_state_steps"] = create_state_steps
+local play_hand
+play_hand = function()
+	local _obj_0 = G.deck.config
+	_obj_0.card_limit = _obj_0.card_limit + 1
+	local card
+	do
+		local _with_0 = playing_card_from_string("A")
+		_with_0:add_to_deck()
+		card = _with_0
+	end
+	local _obj_1 = G.deck.config
+	_obj_1.card_limit = _obj_1.card_limit + 1
+	table.insert(G.playing_cards, card)
+	G.hand:emplace(card)
+	return print(card)
+end
+_module_0["play_hand"] = play_hand
 local success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1) then
 	local debugplus = dpAPI.registerID("steamodded_test")

@@ -16,12 +16,13 @@ concat_lists = (list_of_lists) ->
             output[] = item
     return output
 
-run_ordered_events = (funcs, previous_result=nil) ->
+run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
     if #funcs == 0
         return
     first_func = funcs[1]
     remaining_funcs = [func for func in *funcs[2,]]
     
+    -- Unpack, if necessary
     if type(first_func) == "table"
         -- print("Unpacking #{first_func}")
         funcs = concat_lists({
@@ -34,10 +35,20 @@ run_ordered_events = (funcs, previous_result=nil) ->
     G.E_MANAGER\add_event(Event({
         no_delete: true
         func: ->
-            -- logger.debug("Running event #{_}, #{func} (#{previous_result})")
-            result = first_func(previous_result)
-            -- logger.debug("\tResult was #{result}")
-            run_ordered_events(remaining_funcs, result)
+            -- If we're not ready yet, delay
+            retry_danger_threshold = 100
+            event_count = #G.E_MANAGER.queues.base
+            event_tolerance = (retry_count-1) / retry_danger_threshold + 2 -- This one will always be in there, it's not removed until a success. and there seems to be some other permanent one?
+            if event_count > event_tolerance 
+                if retry_count > 0 and retry_count % retry_danger_threshold == 0
+                    logger.warn("Hit #{retry_count} retries, there's probably something stuck in the queue? (The queue has #{#G.E_MANAGER.queues.base} entries) (raising the remaining event tolerance to #{math.ceil(event_tolerance)})")
+                run_ordered_events(funcs, previous_result, retry_count+1)
+            -- Actually do it :)
+            else
+                -- logger.debug("Running event #{_}, #{func} (#{previous_result})")
+                result = first_func(previous_result)
+                -- logger.debug("\tResult was #{result}")
+                run_ordered_events(remaining_funcs, result)
             true  -- So that the event succeeds
     }))
 
@@ -105,28 +116,119 @@ export run_all_tests =  ->
     -- print()
     -- print()
     -- print()
+    G.E_MANAGER\clear_queue()
     G.steamodded_tests\run!
         
 init = () ->
     G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
 init()
 
+--- Helpful lil guys :)
+
+export playing_card_from_string = (input) ->
+    -- SMODS.create_card seems to be for everyihing but playing cards? Standard and Playing are both not the right set
+    suit = "S"
+    rank = "T"
+    input = string.lower(input)
+
+    if_contains_then = (searching_for, func) ->
+        input, count = string.gsub(input, searching_for, "")
+        if count > 0
+            func()
+
+    -- Suits
+
+    if_contains_then("spades",      -> suit="S")
+    if_contains_then("s",           -> suit="S")
+    if_contains_then("♠",           -> suit="S")
+    if_contains_then("♤",           -> suit="S")
+
+    if_contains_then("hearts",       -> suit="H")
+    if_contains_then("h",            -> suit="H")
+    if_contains_then("♥",            -> suit="H")
+    if_contains_then("♡",            -> suit="H")
+
+    if_contains_then("clubs",       -> suit="C")
+    if_contains_then("c",           -> suit="C")
+    if_contains_then("♣",           -> suit="C")
+    if_contains_then("♧",           -> suit="C")
+
+    if_contains_then("diamonds",    -> suit="D")
+    if_contains_then("d",           -> suit="D")
+    if_contains_then("♦",           -> suit="D")
+    if_contains_then("♢",           -> suit="D")
+
+    -- Ranks
+
+    if_contains_then("ace",         -> rank="A")
+    if_contains_then("a",           -> rank="A")
+
+    if_contains_then("king",        -> rank="K")
+    if_contains_then("k",           -> rank="K")
+
+    if_contains_then("queen",       -> rank="Q")
+    if_contains_then("q",           -> rank="Q")
+
+    if_contains_then("jack",        -> rank="J")
+    if_contains_then("j",           -> rank="J")
+
+    if_contains_then("ten",         -> rank="T")
+    if_contains_then("10",          -> rank="T")
+    if_contains_then("t",           -> rank="T")
+
+    -- eval input="6";string.sub(input, string.find(input, "%d"))
+    -- eval string.find("6", "6")
+    -- eval string.sub(input, string.find("6", "6")
+
+    a, b = string.find(input, "%d")
+    if a != nil
+        rank = string.sub(input, a, b)
+
+    card = Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.c_base, {playing_card: G.playing_card})
+    card\set_base(G.P_CARDS["#{suit}_#{rank}"])
+    card
+
+    -- Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.m_stone, {playing_card = G.playing_card})
+    -- SMODS.create_card({
+    --     set: "Standard",
+    --     no_edition: true,
+    --     soulable: false
+    -- })
+
+
 -- For actually making useful tests
+
 export waiting_steps = (how_many=1) ->
     output = []
-    for _=1,how_many
+    for _ = 1, how_many
         output[] = -> nil
     output
 
 
-export create_state_steps = (kwargs) ->
+export create_state_steps = (kwargs={}) ->
+    kwargs.stake = kwargs.stake or 1
+    kwargs.seed  = kwargs.seed  or "TUTORIAL"
+
     {
         -> G.FUNCS.start_run(nil, {
-            stake: 1
+            stake: kwargs.stake,
+            seed:  kwargs.seed,
         }),
-        waiting_steps(5)
         -> new_round(),
     }
+
+export play_hand = ->
+    G.deck.config.card_limit += 1
+
+    card = with playing_card_from_string("A")
+        \add_to_deck()
+    G.deck.config.card_limit += 1
+    table.insert(G.playing_cards, card)
+    G.hand\emplace(card)
+        -- \set_card_area(G.hand)
+        --\click!
+    print(card)
+
 
 -- DebugPlus stuff
 

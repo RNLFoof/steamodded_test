@@ -9,9 +9,10 @@ G.steamodded_tests.tests[] = testing.TestBundle("Example tests", {
         testing.Test("Always fails", -> false)
 
         testing.TestBundle("Main game tests", {
-                testing.Test("Scoring an Ace", 
+                testing.Test("Scoring an Ace", {
                     testing.create_state_steps()
-                )
+                    testing.play_hand
+                })
             }
         )
 

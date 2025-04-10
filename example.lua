@@ -8,6 +8,9 @@ _obj_0[#_obj_0 + 1] = testing.TestBundle("Example tests", {
 		return false
 	end),
 	testing.TestBundle("Main game tests", {
-		testing.Test("Scoring an Ace", testing.create_state_steps())
+		testing.Test("Scoring an Ace", {
+			testing.create_state_steps(),
+			testing.play_hand
+		})
 	})
 })
