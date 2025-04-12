@@ -6,8 +6,8 @@ local logger = {
 	warn = print,
 	error = print
 }
-local concat_lists
-concat_lists = function(list_of_lists)
+local _concat_lists
+_concat_lists = function(list_of_lists)
 	local output = { }
 	for _, list in ipairs(list_of_lists) do
 		for _, item in ipairs(list) do
@@ -16,8 +16,8 @@ concat_lists = function(list_of_lists)
 	end
 	return output
 end
-local put_in_array_if_alone
-put_in_array_if_alone = function(this_guy)
+local _put_in_array_if_alone
+_put_in_array_if_alone = function(this_guy)
 	local output = nil
 	if type(this_guy) == "function" or type(this_guy) == "string" then
 		output = {
@@ -28,8 +28,8 @@ put_in_array_if_alone = function(this_guy)
 	end
 	return output
 end
-local run_ordered_events
-run_ordered_events = function(funcs, previous_result, retry_count)
+local _run_ordered_events
+_run_ordered_events = function(funcs, previous_result, retry_count)
 	if previous_result == nil then
 		previous_result = nil
 	end
@@ -52,7 +52,7 @@ run_ordered_events = function(funcs, previous_result, retry_count)
 		remaining_funcs = _accum_0
 	end
 	if type(first_func) == "table" then
-		funcs = concat_lists({
+		funcs = _concat_lists({
 			first_func,
 			remaining_funcs
 		})
@@ -76,7 +76,7 @@ run_ordered_events = function(funcs, previous_result, retry_count)
 				if retry_count > 0 and retry_count % retry_danger_threshold == 0 then
 					logger.warn("Hit " .. tostring(retry_count) .. " retries, there's probably something stuck in the queue? (The queue has " .. tostring(#G.E_MANAGER.queues.base) .. " entries) (raising the remaining event tolerance to " .. tostring(math.ceil(event_tolerance)) .. ")")
 				end
-				run_ordered_events(funcs, previous_result, retry_count + 1)
+				_run_ordered_events(funcs, previous_result, retry_count + 1)
 			else
 				local result = nil
 				local success
@@ -87,14 +87,14 @@ run_ordered_events = function(funcs, previous_result, retry_count)
 					logger.error(result)
 					result = "FUCK!!!"
 				end
-				run_ordered_events(remaining_funcs, result)
+				_run_ordered_events(remaining_funcs, result)
 			end
 			return true
 		end
 	}))
 end
-local n_tabs
-n_tabs = function(indentation)
+local _n_tabs
+_n_tabs = function(indentation)
 	return string.rep("\t", indentation)
 end
 local Test
@@ -105,17 +105,17 @@ do
 			if indentation == nil then
 				indentation = 0
 			end
-			local output = put_in_array_if_alone(self.funcs)
+			local output = _put_in_array_if_alone(self.funcs)
 			output[#output + 1] = function(result)
 				if result == "FUCK!!!" then
-					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" errored! See above...")
+					logger.warn(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" errored! See above...")
 					result = false
 				elseif result == false then
-					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
+					logger.warn(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
 				elseif result == true then
-					logger.info(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
+					logger.info(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
 				else
-					logger.warn(n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" returned neither true nor false, but instead " .. tostring(result) .. "? :S")
+					logger.warn(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" returned neither true nor false, but instead " .. tostring(result) .. "? :S")
 				end
 				return result
 			end
@@ -152,7 +152,7 @@ do
 	local _class_0
 	local _base_0 = {
 		run = function(self)
-			return run_ordered_events(self:gather_events())
+			return _run_ordered_events(self:gather_events())
 		end,
 		gather_events = function(self, indentation)
 			if indentation == nil then
@@ -164,7 +164,7 @@ do
 				failed = 0
 			}
 			output[#output + 1] = function()
-				return logger.info(n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
+				return logger.info(_n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
 			end
 			for _, test in ipairs(self.tests) do
 				local events = test:gather_events(indentation + 1)
@@ -182,7 +182,7 @@ do
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
 				local via = all_passed and logger.info or logger.error
-				via(n_tabs(indentation) .. "...done with \"" .. tostring(self.name) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
+				via(_n_tabs(indentation) .. "...done with \"" .. tostring(self.name) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
 				return all_passed
 			end
 			return output
@@ -216,13 +216,93 @@ run_all_tests = function()
 	return G.steamodded_tests:run()
 end
 _module_0["run_all_tests"] = run_all_tests
-local init
-init = function()
+local _init
+_init = function()
 	if G.steamodded_tests == nil then
 		G.steamodded_tests = TestBundle("All tests", { })
 	end
 end
-init()
+_init()
+local _prepend_space_if_populated
+_prepend_space_if_populated = function(label)
+	if label ~= "" then
+		label = " " .. label
+	end
+	return label
+end
+local _abstract_comparison_assertion
+_abstract_comparison_assertion = function(actual, comparison, expectation, explanation, label)
+	if explanation == nil then
+		explanation = ""
+	end
+	if label == nil then
+		label = ""
+	end
+	explanation = _prepend_space_if_populated(explanation)
+	label = _prepend_space_if_populated(label)
+	local error_message = "Got " .. tostring(actual) .. tostring(label) .. ", but expected" .. tostring(explanation) .. " " .. tostring(expectation) .. tostring(label) .. "."
+	return assert(comparison(expectation, actual), error_message)
+end
+local assert_eq
+assert_eq = function(actual, expectation, label)
+	if label == nil then
+		label = ""
+	end
+	return _abstract_comparison_assertion(actual, (function(a, b)
+		return a == b
+	end), expectation, "", label)
+end
+_module_0["assert_eq"] = assert_eq
+local assert_ne
+assert_ne = function(actual, expectation, label)
+	if label == nil then
+		label = ""
+	end
+	return _abstract_comparison_assertion(actual, (function(a, b)
+		return a ~= b
+	end), expectation, "anything but", label)
+end
+_module_0["assert_ne"] = assert_ne
+local assert_lt
+assert_lt = function(actual, expectation, label)
+	if label == nil then
+		label = ""
+	end
+	return _abstract_comparison_assertion(actual, (function(a, b)
+		return a < b
+	end), expectation, "a value less than", label)
+end
+_module_0["assert_lt"] = assert_lt
+local assert_gt
+assert_gt = function(actual, expectation, label)
+	if label == nil then
+		label = ""
+	end
+	return _abstract_comparison_assertion(actual, (function(a, b)
+		return a > b
+	end), expectation, "a value greater than", label)
+end
+_module_0["assert_gt"] = assert_gt
+local assert_le
+assert_le = function(actual, expectation, label)
+	if label == nil then
+		label = ""
+	end
+	return _abstract_comparison_assertion(actual, (function(a, b)
+		return a <= b
+	end), expectation, "a value less than or equal to", label)
+end
+_module_0["assert_le"] = assert_le
+local assert_ge
+assert_ge = function(actual, expectation, label)
+	if label == nil then
+		label = ""
+	end
+	return _abstract_comparison_assertion(actual, (function(a, b)
+		return a >= b
+	end), expectation, "a value greater than or equal to", label)
+end
+_module_0["assert_ge"] = assert_ge
 local playing_card_from_string
 playing_card_from_string = function(input)
 	local suit = "S"
@@ -395,7 +475,7 @@ end
 _module_0["add_cards_to_hand"] = add_cards_to_hand
 local add_centers
 add_centers = function(center_keys)
-	center_keys = put_in_array_if_alone(center_keys)
+	center_keys = _put_in_array_if_alone(center_keys)
 	for _, center_key in ipairs(center_keys) do
 		SMODS.add_card({
 			key = center_key,
@@ -420,12 +500,44 @@ play_hand = function(playing_cards, kwargs)
 	return G.FUNCS.play_cards_from_highlighted()
 end
 _module_0["play_hand"] = play_hand
-local assert_hand_scored
-assert_hand_scored = function(expected_chips)
-	local chips = G.GAME.chips
-	return assert(chips == expected_chips, "Expected " .. tostring(expected_chips) .. " chips, was " .. tostring(chips))
+do
+	_module_0["assert_hand_scored"] = function(compare_chips_to)
+		return assert_eq(G.GAME.chips, compare_chips_to, 'chips')
+	end
+	_module_0["assert_hand_scored_ne"] = function(compare_chips_to)
+		return assert_ne(G.GAME.chips, compare_chips_to, 'chips')
+	end
+	_module_0["assert_hand_scored_lt"] = function(compare_chips_to)
+		return assert_lt(G.GAME.chips, compare_chips_to, 'chips')
+	end
+	_module_0["assert_hand_scored_gt"] = function(compare_chips_to)
+		return assert_gt(G.GAME.chips, compare_chips_to, 'chips')
+	end
+	_module_0["assert_hand_scored_le"] = function(compare_chips_to)
+		return assert_le(G.GAME.chips, compare_chips_to, 'chips')
+	end
+	_module_0["assert_hand_scored_ge"] = function(compare_chips_to)
+		return assert_ge(G.GAME.chips, compare_chips_to, 'chips')
+	end
+	_module_0["assert_dollars"] = function(compare_dollars_to)
+		return assert_eq(G.GAME.dollars, compare_dollars_to, 'dollars')
+	end
+	_module_0["assert_dollars_ne"] = function(compare_dollars_to)
+		return assert_ne(G.GAME.dollars, compare_dollars_to, 'dollars')
+	end
+	_module_0["assert_dollars_lt"] = function(compare_dollars_to)
+		return assert_lt(G.GAME.dollars, compare_dollars_to, 'dollars')
+	end
+	_module_0["assert_dollars_gt"] = function(compare_dollars_to)
+		return assert_gt(G.GAME.dollars, compare_dollars_to, 'dollars')
+	end
+	_module_0["assert_dollars_le"] = function(compare_dollars_to)
+		return assert_le(G.GAME.dollars, compare_dollars_to, 'dollars')
+	end
+	_module_0["assert_dollars_ge"] = function(compare_dollars_to)
+		return assert_ge(G.GAME.dollars, compare_dollars_to, 'dollars')
+	end
 end
-_module_0["assert_hand_scored"] = assert_hand_scored
 local success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1) then
 	local debugplus = dpAPI.registerID("steamodded_test")

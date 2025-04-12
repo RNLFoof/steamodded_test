@@ -9,14 +9,14 @@ logger = { -- Placeholder logger, for when DebugPlus isn't available
 
 -- Internal stuff
 
-concat_lists = (list_of_lists) ->
+_concat_lists = (list_of_lists) ->
     output = {}
     for _, list in ipairs(list_of_lists)
         for _, item in ipairs(list)
             output[] = item
     return output
 
-put_in_array_if_alone = (this_guy) ->
+_put_in_array_if_alone = (this_guy) ->
     output = nil
     if type(this_guy) == "function" or type(this_guy) == "string"
         output = {this_guy}
@@ -25,7 +25,7 @@ put_in_array_if_alone = (this_guy) ->
     output
 
 
-run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
+_run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
     if #funcs == 0
         return
     first_func = funcs[1]
@@ -34,7 +34,7 @@ run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
     -- Unpack, if necessary
     if type(first_func) == "table"
         -- print("Unpacking #{first_func}")
-        funcs = concat_lists({
+        funcs = _concat_lists({
             first_func,
             remaining_funcs
         })
@@ -51,7 +51,7 @@ run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
             if event_count > event_tolerance 
                 if retry_count > 0 and retry_count % retry_danger_threshold == 0
                     logger.warn("Hit #{retry_count} retries, there's probably something stuck in the queue? (The queue has #{#G.E_MANAGER.queues.base} entries) (raising the remaining event tolerance to #{math.ceil(event_tolerance)})")
-                run_ordered_events(funcs, previous_result, retry_count+1)
+                _run_ordered_events(funcs, previous_result, retry_count+1)
             -- Actually do it :)
             else
                 -- logger.debug("Running event #{_}, #{func} (#{previous_result})")
@@ -61,11 +61,11 @@ run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
                     logger.error(result)
                     result = "FUCK!!!"
                 -- logger.debug("\tResult was #{result}")
-                run_ordered_events(remaining_funcs, result)
+                _run_ordered_events(remaining_funcs, result)
             true  -- So that the event succeeds
     }))
 
-n_tabs = (indentation) ->
+_n_tabs = (indentation) ->
     string.rep("\t", indentation)
 
 -- Meat and potatoes
@@ -76,17 +76,17 @@ export class Test
         @funcs = funcs  -- Can be a single function or an array of them
     
     gather_events: (indentation=0) =>
-        output = put_in_array_if_alone(@funcs)
+        output = _put_in_array_if_alone(@funcs)
         output[] = (result) -> 
                 if result == "FUCK!!!"
-                    logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" errored! See above...")
+                    logger.warn(_n_tabs(indentation) .. "\tTest \"#{@name}\" errored! See above...")
                     result = false
                 elseif result == false
-                    logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
+                    logger.warn(_n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
                 elseif result == true
-                    logger.info(n_tabs(indentation) .. "\tTest \"#{@name}\" passed! :)")
+                    logger.info(_n_tabs(indentation) .. "\tTest \"#{@name}\" passed! :)")
                 else
-                    logger.warn(n_tabs(indentation) .. "\tTest \"#{@name}\" returned neither true nor false, but instead #{result}? :S")
+                    logger.warn(_n_tabs(indentation) .. "\tTest \"#{@name}\" returned neither true nor false, but instead #{result}? :S")
                 result
         return output
 
@@ -97,13 +97,13 @@ export class TestBundle
         @tests = tests
     
     run: =>
-        run_ordered_events(self\gather_events())
+        _run_ordered_events(self\gather_events())
 
     gather_events: (indentation=0) =>
         output = {}
         tally = {passed: 0, failed: 0}
         output[] = ->
-            logger.info(n_tabs(indentation) .. "Running test bundle \"#{@name}\" (contains #{#@tests} subtest(s))...")
+            logger.info(_n_tabs(indentation) .. "Running test bundle \"#{@name}\" (contains #{#@tests} subtest(s))...")
 
         for _, test in ipairs(@tests)
             -- print("Gathering events for #{test.name}")
@@ -116,23 +116,44 @@ export class TestBundle
         output[] = ->
             all_passed = tally.failed == 0
             via = all_passed and logger.info or logger.error
-            via(n_tabs(indentation) .. "...done with \"#{@name}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+            via(_n_tabs(indentation) .. "...done with \"#{@name}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
             return all_passed
         
         output
 
 
 export run_all_tests =  ->
-    -- run_ordered_events(G.steamodded_tests.tests[1]\gather_events!)
+    -- _run_ordered_events(G.steamodded_tests.tests[1]\gather_events!)
     -- print()
     -- print()
     -- print()
     G.E_MANAGER\clear_queue()
     G.steamodded_tests\run!
         
-init = () ->
+_init = () ->
     G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
-init()
+_init()
+
+-- Assertions
+_prepend_space_if_populated = (label) ->
+    if label != ""
+        label = " " .. label
+    label
+
+_abstract_comparison_assertion = (actual, comparison, expectation, explanation="", label="") ->
+    explanation = _prepend_space_if_populated(explanation)
+    label       = _prepend_space_if_populated(label)
+    error_message = "Got #{actual}#{label}, but expected#{explanation} #{expectation}#{label}."
+    assert(comparison(expectation, actual), error_message)
+
+export assert_eq     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a == b), expectation, "",                                 label)
+export assert_ne     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a != b), expectation, "anything but",                     label)
+export assert_lt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <  b), expectation, "a value less than",                label)
+export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >  b), expectation, "a value greater than",             label)
+export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b), expectation, "a value less than or equal to",    label)
+export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b), expectation, "a value greater than or equal to", label)
+
+
 
 --- Helpful lil guys :)
 
@@ -251,7 +272,7 @@ export add_cards_to_hand = (playing_cards, select_them=false) ->
             card\click!
 
 export add_centers = (center_keys) ->
-    center_keys = put_in_array_if_alone(center_keys)
+    center_keys = _put_in_array_if_alone(center_keys)
     for _, center_key in ipairs(center_keys)
         SMODS.add_card({key: center_key, soulable: false, no_edition: true})
 
@@ -267,9 +288,42 @@ export play_hand = (playing_cards, kwargs={})->
     
     G.FUNCS.play_cards_from_highlighted()
 
-export assert_hand_scored = (expected_chips) ->
-    chips = G.GAME.chips
-    assert(chips == expected_chips, "Expected #{expected_chips} chips, was #{chips}")
+-- So this seems stupid, but...
+-- It results in many functions. At time of writing, it's these, but this is open to change:
+-- assert_hand_scored = (compare_chips_to) -> ...
+-- assert_hand_scored_ne = (compare_chips_to) -> ...
+-- assert_hand_scored_lt = (compare_chips_to) -> ...
+-- assert_hand_scored_gt = (compare_chips_to) -> ...
+-- assert_hand_scored_le = (compare_chips_to) -> ...
+-- assert_hand_scored_ge = (compare_chips_to) -> ...
+-- assert_dollars = (compare_dollars_to) -> ...
+-- assert_dollars_ne = (compare_dollars_to) -> ...
+-- assert_dollars_lt = (compare_dollars_to) -> ...
+-- assert_dollars_gt = (compare_dollars_to) -> ...
+-- assert_dollars_le = (compare_dollars_to) -> ...
+-- assert_dollars_ge = (compare_dollars_to) -> ...
+macro define_many_assertion_functions =  -> 
+    output = ""
+
+    for _, assertion_group in ipairs({
+        {function_append: "hand_scored", value_label: "chips",   value_source: "G.GAME.chips"  },
+        {function_append: "dollars",     value_label: "dollars", value_source: "G.GAME.dollars"},
+    })
+        for _, assertion_operation in ipairs({
+            {internal_function_name: "assert_eq", external_function_append: ""   },
+            {internal_function_name: "assert_ne", external_function_append: "_ne"},
+            {internal_function_name: "assert_lt", external_function_append: "_lt"},
+            {internal_function_name: "assert_gt", external_function_append: "_gt"},
+            {internal_function_name: "assert_le", external_function_append: "_le"},
+            {internal_function_name: "assert_ge", external_function_append: "_ge"},
+        })
+            -- You can't export like this, but you *can* assign to _module_0, which seemingly does the same thing
+            output ..= "\n_module_0[\"assert_#{assertion_group.function_append}#{assertion_operation.external_function_append}\"] = (compare_#{assertion_group.value_label}_to) -> #{assertion_operation.internal_function_name}(#{assertion_group.value_source}, compare_#{assertion_group.value_label}_to, '#{assertion_group.value_label}')"
+            --ex:       \n_module_0[\"assert_#{hand_scored                    }#{_lt                                         }\"] = (compare_#{chips                      }_to) -> #{assert_lt                                 }(#{G.GAME.chips                }, compare_#{chips                      }_to, '#{chips                      }')"
+            --          export assert_hand_scored_lt = (compare_chips_to) -> assert_lt(G.GAME.chips, compare_chips_to, 'chips')
+    output
+
+$define_many_assertion_functions
 
 -- DebugPlus stuff
 
