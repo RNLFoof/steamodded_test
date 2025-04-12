@@ -19,7 +19,7 @@ end
 local put_in_array_if_alone
 put_in_array_if_alone = function(this_guy)
 	local output = nil
-	if type(this_guy) == "function" then
+	if type(this_guy) == "function" or type(this_guy) == "string" then
 		output = {
 			this_guy
 		}
@@ -367,6 +367,12 @@ empty_hand = function()
 	G.hand.cards = { }
 end
 _module_0["empty_hand"] = empty_hand
+local empty_centers
+empty_centers = function()
+	G.jokers.cards = { }
+	G.consumeables.cards = { }
+end
+_module_0["empty_centers"] = empty_centers
 local add_cards_to_hand
 add_cards_to_hand = function(playing_cards, select_them)
 	if select_them == nil then
@@ -387,14 +393,30 @@ add_cards_to_hand = function(playing_cards, select_them)
 	end
 end
 _module_0["add_cards_to_hand"] = add_cards_to_hand
+local add_centers
+add_centers = function(center_keys)
+	center_keys = put_in_array_if_alone(center_keys)
+	for _, center_key in ipairs(center_keys) do
+		SMODS.add_card({
+			key = center_key,
+			soulable = false,
+			no_edition = true
+		})
+	end
+end
+_module_0["add_centers"] = add_centers
 local play_hand
 play_hand = function(playing_cards, kwargs)
 	if kwargs == nil then
 		kwargs = { }
 	end
 	kwargs.hold = kwargs.hold or { }
+	kwargs.centers = kwargs.centers or { }
 	empty_hand()
+	empty_centers()
 	add_cards_to_hand(playing_cards, true)
+	add_cards_to_hand(kwargs.hold)
+	add_centers(kwargs.centers)
 	return G.FUNCS.play_cards_from_highlighted()
 end
 _module_0["play_hand"] = play_hand

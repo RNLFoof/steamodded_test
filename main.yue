@@ -18,7 +18,7 @@ concat_lists = (list_of_lists) ->
 
 put_in_array_if_alone = (this_guy) ->
     output = nil
-    if type(this_guy) == "function"
+    if type(this_guy) == "function" or type(this_guy) == "string"
         output = {this_guy}
     else
         output = this_guy
@@ -235,6 +235,10 @@ export create_state_steps = (kwargs={}) ->
 export empty_hand = ->
     G.hand.cards = {}
 
+export empty_centers = ->
+    G.jokers.cards = {}
+    G.consumeables.cards = {}
+
 export add_cards_to_hand = (playing_cards, select_them=false) ->
     for _, card in ipairs(playing_cards)
         if type(card) == "string"
@@ -246,11 +250,21 @@ export add_cards_to_hand = (playing_cards, select_them=false) ->
         if select_them
             card\click!
 
+export add_centers = (center_keys) ->
+    center_keys = put_in_array_if_alone(center_keys)
+    for _, center_key in ipairs(center_keys)
+        SMODS.add_card({key: center_key, soulable: false, no_edition: true})
+
 export play_hand = (playing_cards, kwargs={})->
-    kwargs.hold = kwargs.hold or {}
+    kwargs.hold =    kwargs.hold or {}
+    kwargs.centers = kwargs.centers or {}
 
     empty_hand()
+    empty_centers()
     add_cards_to_hand(playing_cards, true)
+    add_cards_to_hand(kwargs.hold)
+    add_centers(kwargs.centers)
+    
     G.FUNCS.play_cards_from_highlighted()
 
 export assert_hand_scored = (expected_chips) ->
