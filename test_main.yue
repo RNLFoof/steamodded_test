@@ -1,0 +1,17 @@
+testing = assert(SMODS.load_file("libs\\steamodded_test\\main.lua"))()
+
+G.steamodded_tests.tests[] = testing.TestBundle("Test tests", {
+
+        testing.TestBundle("Assertion function tests", {
+            testing.Test("assert_eq", -> testing.assert_eq(5, 5)),
+            testing.Test("assert_ne", -> testing.assert_ne(5, 4)),
+            testing.Test("assert_lt", -> testing.assert_lt(4, 5)),
+            testing.Test("assert_gt", -> testing.assert_gt(5, 4)),
+            testing.Test("assert_le", -> testing.assert_le(4, 5)),
+            testing.Test("assert_ge", -> testing.assert_ge(5, 4)),
+            testing.Test("assert_le", -> testing.assert_le(5, 5)),
+            testing.Test("assert_ge", -> testing.assert_ge(5, 5)),
+        }),
+
+    }
+)
