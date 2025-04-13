@@ -332,11 +332,13 @@ if success and dpAPI.isVersionCompatible(1)
     local debugplus = dpAPI.registerID("steamodded_test")
     logger = debugplus.logger
 
-    debugplus.addCommand({
+    success, result = pcall(debugplus.addCommand, {
         name: "test",
         shortDesc: "Runs all tests.",
         desc: "IDK man!!! It runs your tests and tells you the results!!",
         exec: (args, rawArgs, dp) ->
             run_all_tests()
             "here we go :)"
-})
+    })
+    if (not success) and (not string.match(result, "This command already exists$"))
+        error(result)
