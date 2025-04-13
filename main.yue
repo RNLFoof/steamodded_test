@@ -144,7 +144,7 @@ _abstract_comparison_assertion = (actual, comparison, expectation, explanation="
     explanation = _prepend_space_if_populated(explanation)
     label       = _prepend_space_if_populated(label)
     error_message = "Got #{actual}#{label}, but expected#{explanation} #{expectation}#{label}."
-    assert(comparison(expectation, actual), error_message)
+    assert(comparison(actual, expectation), error_message)
 
 export assert_eq     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a == b), expectation, "",                                 label)
 export assert_ne     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a != b), expectation, "anything but",                     label)

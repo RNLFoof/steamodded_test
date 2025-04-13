@@ -241,7 +241,7 @@ _abstract_comparison_assertion = function(actual, comparison, expectation, expla
 	explanation = _prepend_space_if_populated(explanation)
 	label = _prepend_space_if_populated(label)
 	local error_message = "Got " .. tostring(actual) .. tostring(label) .. ", but expected" .. tostring(explanation) .. " " .. tostring(expectation) .. tostring(label) .. "."
-	return assert(comparison(expectation, actual), error_message)
+	return assert(comparison(actual, expectation), error_message)
 end
 local assert_eq
 assert_eq = function(actual, expectation, label)
