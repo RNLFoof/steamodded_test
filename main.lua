@@ -728,8 +728,8 @@ do
 end
 local subcommands = {
 	failed = {
-		["function"] = function()
-			config.failed_only = true
+		["function"] = function(context)
+			context.config.failed_only = true
 		end,
 		description = "Runs only tests that didn't succeed the last time they were ran (this includes new tests that didn't succeed last time because there wasn't a last time)"
 	}
@@ -740,24 +740,38 @@ for subcommand_name, subcommand in pairs(subcommands) do
 		"--" .. subcommand_name
 	}
 end
+local _anon_func_0 = function(input_string, string)
+	local _accum_0 = { }
+	local _len_0 = 1
+	for x in string.gmatch(input_string, "[^%s]+") do
+		_accum_0[_len_0] = x
+		_len_0 = _len_0 + 1
+	end
+	return _accum_0
+end
 local config_from_string
 config_from_string = function(input_string)
 	local context = {
-		tokens = string.gmatch(input_string, "[^%s]+"),
-		token_index = 1
+		tokens = _anon_func_0(input_string, string),
+		token_index = 1,
+		config = { }
 	}
-	local config = { }
 	while context.token_index <= #context.tokens do
 		local token = context.tokens[context.token_index]
+		local found = false
 		for subcommand_name, subcommand in pairs(subcommands) do
-			for alias in subcommand.aliases do
+			local _list_0 = subcommand.aliases
+			for _index_0 = 1, #_list_0 do
+				local alias = _list_0[_index_0]
 				local _continue_0 = false
 				repeat
 					if token ~= alias then
 						_continue_0 = true
 						break
 					end
+					print(context)
 					subcommand["function"](context)
+					found = true
 					_continue_0 = true
 				until true
 				if not _continue_0 then
@@ -765,8 +779,12 @@ config_from_string = function(input_string)
 				end
 			end
 		end
+		if not found then
+			error("Unknown token: " .. tostring(token))
+		end
 		context.token_index = context.token_index + 1
 	end
+	return context.config
 end
 local success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1) then

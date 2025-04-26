@@ -354,7 +354,7 @@ $define_many_assertion_functions
 
 subcommands = {
     failed: {
-        function: -> config.failed_only = true,
+        function: (context) -> context.config.failed_only = true,
         description: "Runs only tests that didn't succeed the last time they were ran (this includes new tests that didn't succeed last time because there wasn't a last time)"
     }
 }
@@ -366,18 +366,24 @@ for subcommand_name, subcommand in pairs(subcommands)
 
 config_from_string = (input_string) ->
     context = {
-        tokens: string.gmatch(input_string, "[^%s]+")
+        tokens: [x for x in string.gmatch(input_string, "[^%s]+")]
         token_index: 1
+        config: {}
     }
-    config = {}
 
     while context.token_index <= #context.tokens
         token = context.tokens[context.token_index]
+        found = false
         for subcommand_name, subcommand in pairs(subcommands)
-            for alias in subcommand.aliases
+            for alias in *subcommand.aliases
                 if token != alias then continue
+                print(context)
                 subcommand.function(context)
+                found = true
+        if not found
+            error("Unknown token: #{token}")
         context.token_index += 1
+    return context.config
 
 success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1)
