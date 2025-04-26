@@ -1,4 +1,7 @@
 
+json = require "json"
+assert(json)
+
 logger = { -- Placeholder logger, for when DebugPlus isn't available
     log:   print
     debug: print
@@ -70,44 +73,74 @@ _n_tabs = (indentation) ->
 
 -- Meat and potatoes
 
+PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
 export class TestBase
-    path_string: (context) -> table.concat(context.path, "/")
+    path_string: (path) -> table.concat(path, "/")
+    path_string_tag_yourself: (path) => @.path_string({...path, @name})
+
     gather_events_config_with_defaults: (config) ->
         defaults = {
             whitelist: ".*",
             failed_only: false
         }
         return {...defaults, ...config}
+    
+    should_skip: (config, context) => false
+    
     gather_events_context_with_defaults: (context) =>
         defaults = {
             indentation: 0
             path: {}
+            previous_results: {}
         }
         output = {...defaults, ...context}
-        output.path = {...output.path, @name}  -- You might be wondering if having the name be appended is *really* a default, and like, yeah man. sure.  
+
+        if context.previous_results != nil and love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) != nil
+            contents = love.filesystem.read(PREVIOUS_RESULTS_PATH)
+            if contents != ""
+                output.previous_results = json.decode(contents)
+
         return output
+    
+    extrapolate_subcontext: (context) =>
+        subcontext = {...context} -- This isn't a deep copy so be careful :)
+        subcontext.indentation += 1
+        subcontext.path = {...subcontext.path, @name}  -- Doesn't just append to copy the array
+        return subcontext
     
 export class Test extends TestBase
     new: (name, funcs, prep=->) =>
         @name = name
         @funcs = funcs  -- Can be a single function or an array of them
+
+    should_skip: (config, context) => 
+        if config.failed_only and context.previous_results[@.path_string(context.path)]
+            return "Succeeded last time"
+        super(config, context)
     
     gather_events: (config={}, _context={}) =>
         config = @.gather_events_config_with_defaults(config)
         context = @gather_events_context_with_defaults(_context)
+        context = @extrapolate_subcontext(context)
 
         output = _put_in_array_if_alone(@funcs)
+    
+        line_prefix = (context) ->
+            _n_tabs(context.indentation + 1) ..
+            @@__name ..
+            " \"#{@.path_string(context.path)}\" "
+        
         output[] = (result) -> 
-                if result == "FUCK!!!"
-                    logger.warn(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" errored! See above...")
-                    result = false
-                elseif result == false
-                    logger.warn(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" failed! :(")
-                elseif result == true
-                    logger.info(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" passed! :)")
-                else
-                    logger.warn(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" returned neither true nor false, but instead #{result}? :S")
-                result
+            if result == "FUCK!!!"
+                logger.warn(line_prefix(context) .. "errored! See above...")
+                result = false
+            elseif result == false
+                logger.warn(line_prefix(context) .. "failed! :(")
+            elseif result == true
+                logger.info(line_prefix(context) .. "passed! :)")
+            else
+                logger.warn(line_prefix(context) .. "returned neither true nor false, but instead #{result}? :S")
+            result
         return output
 
 
@@ -122,27 +155,42 @@ export class TestBundle extends TestBase
     gather_events: (config={}, _context={}) =>
         config = @.gather_events_config_with_defaults(config)
         context = @gather_events_context_with_defaults(_context)
+        context = @extrapolate_subcontext(context)
 
         output = {}
-        tally = {passed: 0, failed: 0}
+        tally = {passed: 0, failed: 0, skipped: 0}
         output[] = ->
-            logger.info(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context)}\" (contains #{#@tests} subtest(s))...")
+            logger.info(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context.path)}\" (contains #{#@tests} subtest(s))...")
 
-        for _, test in ipairs(@tests)
-            subcontext = {...context} -- This isn't a deep copy so be careful :)
-            subcontext.indentation += 1
-            subcontext.path = {...subcontext.path}
-            events = test\gather_events(config, subcontext)
-            
-            output[] = -> G.E_MANAGER\clear_queue()
-            for _, event in ipairs(events)
-                output[] = event
-            output[] = (result) -> tally[result and "passed" or "failed"] += 1
+        for test_index, test in ipairs(@tests)
+            subcontext = test::extrapolate_subcontext(context)
+
+            events = {}
+            skippy = test::should_skip(config, subcontext)
+            if skippy
+                output[] = (result) -> 
+                    tally.skipped += 1
+                    logger.warn(_n_tabs(subcontext.indentation) .. "Skipped \"#{@.path_string(subcontext.path)}\"! Reason: #{skippy}")
+            else
+                events = test\gather_events(config, context)
+                output[] = -> G.E_MANAGER\clear_queue()
+                for _, event in ipairs(events)
+                    output[] = event
+                output[] = (result) -> 
+                    tally[result and "passed" or "failed"] += 1
+                    context.previous_results[@.path_string(subcontext.path)] = result
 
         output[] = ->
             all_passed = tally.failed == 0
             via = all_passed and logger.info or logger.error
-            via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context)}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+            if tally.skipped > 0
+                via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context.path)}\". Ran #{#@tests - tally.skipped}/#{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed, #{tally.skipped} skipped.")
+            else
+                via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context.path)}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+
+            if true or context.indentation == 0 -- This means it's over
+                love.filesystem.write(PREVIOUS_RESULTS_PATH, json.encode(context.previous_results))
+
             return all_passed
         
         output

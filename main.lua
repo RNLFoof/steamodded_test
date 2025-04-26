@@ -1,4 +1,6 @@
 local _module_0 = { }
+local json = require("json")
+assert(json)
 local logger = {
 	log = print,
 	debug = print,
@@ -97,12 +99,30 @@ local _n_tabs
 _n_tabs = function(indentation)
 	return string.rep("\t", indentation)
 end
+local PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
+local _anon_func_0 = function(pairs, path, self)
+	local _tab_0 = { }
+	local _idx_0 = 1
+	for _key_0, _value_0 in pairs(path) do
+		if _idx_0 == _key_0 then
+			_tab_0[#_tab_0 + 1] = _value_0
+			_idx_0 = _idx_0 + 1
+		else
+			_tab_0[_key_0] = _value_0
+		end
+	end
+	_tab_0[#_tab_0 + 1] = self.name
+	return _tab_0
+end
 local TestBase
 do
 	local _class_0
 	local _base_0 = {
-		path_string = function(context)
-			return table.concat(context.path, "/")
+		path_string = function(path)
+			return table.concat(path, "/")
+		end,
+		path_string_tag_yourself = function(self, path)
+			return self.path_string(_anon_func_0(pairs, path, self))
 		end,
 		gather_events_config_with_defaults = function(config)
 			local defaults = {
@@ -130,10 +150,14 @@ do
 			end
 			return _tab_0
 		end,
+		should_skip = function(self, config, context)
+			return false
+		end,
 		gather_events_context_with_defaults = function(self, context)
 			local defaults = {
 				indentation = 0,
-				path = { }
+				path = { },
+				previous_results = { }
 			}
 			local output
 			do
@@ -158,9 +182,33 @@ do
 				end
 				output = _tab_0
 			end
+			if context.previous_results ~= nil and love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) ~= nil then
+				local contents = love.filesystem.read(PREVIOUS_RESULTS_PATH)
+				if contents ~= "" then
+					output.previous_results = json.decode(contents)
+				end
+			end
+			return output
+		end,
+		extrapolate_subcontext = function(self, context)
+			local subcontext
 			do
 				local _tab_0 = { }
-				local _obj_0 = output.path
+				local _idx_0 = 1
+				for _key_0, _value_0 in pairs(context) do
+					if _idx_0 == _key_0 then
+						_tab_0[#_tab_0 + 1] = _value_0
+						_idx_0 = _idx_0 + 1
+					else
+						_tab_0[_key_0] = _value_0
+					end
+				end
+				subcontext = _tab_0
+			end
+			subcontext.indentation = subcontext.indentation + 1
+			do
+				local _tab_0 = { }
+				local _obj_0 = subcontext.path
 				local _idx_0 = 1
 				for _key_0, _value_0 in pairs(_obj_0) do
 					if _idx_0 == _key_0 then
@@ -171,9 +219,9 @@ do
 					end
 				end
 				_tab_0[#_tab_0 + 1] = self.name
-				output.path = _tab_0
+				subcontext.path = _tab_0
 			end
-			return output
+			return subcontext
 		end
 	}
 	if _base_0.__index == nil then
@@ -200,6 +248,12 @@ do
 	local _class_0
 	local _parent_0 = TestBase
 	local _base_0 = {
+		should_skip = function(self, config, context)
+			if config.failed_only and context.previous_results[self.path_string(context.path)] then
+				return "Succeeded last time"
+			end
+			return _class_0.__parent.__base.should_skip(self, config, context)
+		end,
 		gather_events = function(self, config, _context)
 			if config == nil then
 				config = { }
@@ -209,17 +263,22 @@ do
 			end
 			config = self.gather_events_config_with_defaults(config)
 			local context = self:gather_events_context_with_defaults(_context)
+			context = self:extrapolate_subcontext(context)
 			local output = _put_in_array_if_alone(self.funcs)
+			local line_prefix
+			line_prefix = function(context)
+				return _n_tabs(context.indentation + 1) .. self.__class.__name .. " \"" .. tostring(self.path_string(context.path)) .. "\" "
+			end
 			output[#output + 1] = function(result)
 				if result == "FUCK!!!" then
-					logger.warn(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" errored! See above...")
+					logger.warn(line_prefix(context) .. "errored! See above...")
 					result = false
 				elseif result == false then
-					logger.warn(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" failed! :(")
+					logger.warn(line_prefix(context) .. "failed! :(")
 				elseif result == true then
-					logger.info(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" passed! :)")
+					logger.info(line_prefix(context) .. "passed! :)")
 				else
-					logger.warn(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" returned neither true nor false, but instead " .. tostring(result) .. "? :S")
+					logger.warn(line_prefix(context) .. "returned neither true nor false, but instead " .. tostring(result) .. "? :S")
 				end
 				return result
 			end
@@ -291,60 +350,51 @@ do
 			end
 			config = self.gather_events_config_with_defaults(config)
 			local context = self:gather_events_context_with_defaults(_context)
+			context = self:extrapolate_subcontext(context)
 			local output = { }
 			local tally = {
 				passed = 0,
-				failed = 0
+				failed = 0,
+				skipped = 0
 			}
 			output[#output + 1] = function()
-				return logger.info(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
+				return logger.info(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context.path)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
 			end
-			for _, test in ipairs(self.tests) do
-				local subcontext
-				do
-					local _tab_0 = { }
-					local _idx_0 = 1
-					for _key_0, _value_0 in pairs(context) do
-						if _idx_0 == _key_0 then
-							_tab_0[#_tab_0 + 1] = _value_0
-							_idx_0 = _idx_0 + 1
-						else
-							_tab_0[_key_0] = _value_0
-						end
+			for test_index, test in ipairs(self.tests) do
+				local subcontext = test:extrapolate_subcontext(context)
+				local events = { }
+				local skippy = test:should_skip(config, subcontext)
+				if skippy then
+					output[#output + 1] = function(result)
+						tally.skipped = tally.skipped + 1
+						return logger.warn(_n_tabs(subcontext.indentation) .. "Skipped \"" .. tostring(self.path_string(subcontext.path)) .. "\"! Reason: " .. tostring(skippy))
 					end
-					subcontext = _tab_0
-				end
-				subcontext.indentation = subcontext.indentation + 1
-				do
-					local _tab_0 = { }
-					local _obj_0 = subcontext.path
-					local _idx_0 = 1
-					for _key_0, _value_0 in pairs(_obj_0) do
-						if _idx_0 == _key_0 then
-							_tab_0[#_tab_0 + 1] = _value_0
-							_idx_0 = _idx_0 + 1
-						else
-							_tab_0[_key_0] = _value_0
-						end
+				else
+					events = test:gather_events(config, context)
+					output[#output + 1] = function()
+						return G.E_MANAGER:clear_queue()
 					end
-					subcontext.path = _tab_0
-				end
-				local events = test:gather_events(config, subcontext)
-				output[#output + 1] = function()
-					return G.E_MANAGER:clear_queue()
-				end
-				for _, event in ipairs(events) do
-					output[#output + 1] = event
-				end
-				output[#output + 1] = function(result)
-					local _update_0 = result and "passed" or "failed"
-					tally[_update_0] = tally[_update_0] + 1
+					for _, event in ipairs(events) do
+						output[#output + 1] = event
+					end
+					output[#output + 1] = function(result)
+						local _update_0 = result and "passed" or "failed"
+						tally[_update_0] = tally[_update_0] + 1
+						context.previous_results[self.path_string(subcontext.path)] = result
+					end
 				end
 			end
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
 				local via = all_passed and logger.info or logger.error
-				via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context)) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
+				if tally.skipped > 0 then
+					via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context.path)) .. "\". Ran " .. tostring(#self.tests - tally.skipped) .. "/" .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed, " .. tostring(tally.skipped) .. " skipped.")
+				else
+					via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context.path)) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
+				end
+				if true or context.indentation == 0 then
+					love.filesystem.write(PREVIOUS_RESULTS_PATH, json.encode(context.previous_results))
+				end
 				return all_passed
 			end
 			return output
@@ -740,7 +790,7 @@ for subcommand_name, subcommand in pairs(subcommands) do
 		"--" .. subcommand_name
 	}
 end
-local _anon_func_0 = function(input_string, string)
+local _anon_func_1 = function(input_string, string)
 	local _accum_0 = { }
 	local _len_0 = 1
 	for x in string.gmatch(input_string, "[^%s]+") do
@@ -752,7 +802,7 @@ end
 local config_from_string
 config_from_string = function(input_string)
 	local context = {
-		tokens = _anon_func_0(input_string, string),
+		tokens = _anon_func_1(input_string, string),
 		token_index = 1,
 		config = { }
 	}
