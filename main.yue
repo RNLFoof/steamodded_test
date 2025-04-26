@@ -74,6 +74,19 @@ _n_tabs = (indentation) ->
 -- Meat and potatoes
 
 PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
+
+context_defaults = {
+    indentation: 0
+    path: {}
+    previous_results: {}
+    test_index: 1
+    test_count: 1
+}
+if love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) != nil
+    contents = love.filesystem.read(PREVIOUS_RESULTS_PATH)
+    if contents != ""
+        context_defaults.previous_results = json.decode(contents)
+
 export class TestBase
     path_string: (path) -> table.concat(path, "/")
     path_string_tag_yourself: (path) => @.path_string({...path, @name})
@@ -88,17 +101,8 @@ export class TestBase
     should_skip: (config, context) => false
     
     gather_events_context_with_defaults: (context) =>
-        defaults = {
-            indentation: 0
-            path: {}
-            previous_results: {}
-        }
+        defaults = context_defaults
         output = {...defaults, ...context}
-
-        if context.previous_results != nil and love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) != nil
-            contents = love.filesystem.read(PREVIOUS_RESULTS_PATH)
-            if contents != ""
-                output.previous_results = json.decode(contents)
 
         return output
     
@@ -107,6 +111,15 @@ export class TestBase
         subcontext.indentation += 1
         subcontext.path = {...subcontext.path, @name}  -- Doesn't just append to copy the array
         return subcontext
+    
+    line_text: (context, start_text="", end_text="") =>
+        _n_tabs(context.indentation + 1) ..
+        "[#{context.test_index}/#{context.test_count}] " ..
+        start_text ..
+        (start_text != "" and " " or "")..
+        @@__name ..
+        " \"#{@.path_string(context.path)}\" " ..
+        end_text
     
 export class Test extends TestBase
     new: (name, funcs, prep=->) =>
@@ -124,22 +137,17 @@ export class Test extends TestBase
         context = @extrapolate_subcontext(context)
 
         output = _put_in_array_if_alone(@funcs)
-    
-        line_prefix = (context) ->
-            _n_tabs(context.indentation + 1) ..
-            @@__name ..
-            " \"#{@.path_string(context.path)}\" "
         
         output[] = (result) -> 
             if result == "FUCK!!!"
-                logger.warn(line_prefix(context) .. "errored! See above...")
+                logger.warn(@line_text(context, nil, "errored! See above..."))
                 result = false
             elseif result == false
-                logger.warn(line_prefix(context) .. "failed! :(")
+                logger.warn(@line_text(context, nil, "failed! :("))
             elseif result == true
-                logger.info(line_prefix(context) .. "passed! :)")
+                logger.info(@line_text(context, nil, "passed! :)"))
             else
-                logger.warn(line_prefix(context) .. "returned neither true nor false, but instead #{result}? :S")
+                logger.warn(@line_text(context, nil, "returned neither true nor false, but instead #{result}? :S"))
             result
         return output
 
@@ -162,7 +170,9 @@ export class TestBundle extends TestBase
         output[] = ->
             logger.info(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context.path)}\" (contains #{#@tests} subtest(s))...")
 
+        context.test_count = #@tests
         for test_index, test in ipairs(@tests)
+            context.test_index = test_index
             subcontext = test::extrapolate_subcontext(context)
 
             events = {}

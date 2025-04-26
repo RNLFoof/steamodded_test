@@ -100,6 +100,19 @@ _n_tabs = function(indentation)
 	return string.rep("\t", indentation)
 end
 local PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
+local context_defaults = {
+	indentation = 0,
+	path = { },
+	previous_results = { },
+	test_index = 1,
+	test_count = 1
+}
+if love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) ~= nil then
+	local contents = love.filesystem.read(PREVIOUS_RESULTS_PATH)
+	if contents ~= "" then
+		context_defaults.previous_results = json.decode(contents)
+	end
+end
 local _anon_func_0 = function(pairs, path, self)
 	local _tab_0 = { }
 	local _idx_0 = 1
@@ -154,11 +167,7 @@ do
 			return false
 		end,
 		gather_events_context_with_defaults = function(self, context)
-			local defaults = {
-				indentation = 0,
-				path = { },
-				previous_results = { }
-			}
+			local defaults = context_defaults
 			local output
 			do
 				local _tab_0 = { }
@@ -181,12 +190,6 @@ do
 					end
 				end
 				output = _tab_0
-			end
-			if context.previous_results ~= nil and love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) ~= nil then
-				local contents = love.filesystem.read(PREVIOUS_RESULTS_PATH)
-				if contents ~= "" then
-					output.previous_results = json.decode(contents)
-				end
 			end
 			return output
 		end,
@@ -222,6 +225,15 @@ do
 				subcontext.path = _tab_0
 			end
 			return subcontext
+		end,
+		line_text = function(self, context, start_text, end_text)
+			if start_text == nil then
+				start_text = ""
+			end
+			if end_text == nil then
+				end_text = ""
+			end
+			return _n_tabs(context.indentation + 1) .. "[" .. tostring(context.test_index) .. "/" .. tostring(context.test_count) .. "] " .. start_text .. (start_text ~= "" and " " or "") .. self.__class.__name .. " \"" .. tostring(self.path_string(context.path)) .. "\" " .. end_text
 		end
 	}
 	if _base_0.__index == nil then
@@ -265,20 +277,16 @@ do
 			local context = self:gather_events_context_with_defaults(_context)
 			context = self:extrapolate_subcontext(context)
 			local output = _put_in_array_if_alone(self.funcs)
-			local line_prefix
-			line_prefix = function(context)
-				return _n_tabs(context.indentation + 1) .. self.__class.__name .. " \"" .. tostring(self.path_string(context.path)) .. "\" "
-			end
 			output[#output + 1] = function(result)
 				if result == "FUCK!!!" then
-					logger.warn(line_prefix(context) .. "errored! See above...")
+					logger.warn(self:line_text(context, nil, "errored! See above..."))
 					result = false
 				elseif result == false then
-					logger.warn(line_prefix(context) .. "failed! :(")
+					logger.warn(self:line_text(context, nil, "failed! :("))
 				elseif result == true then
-					logger.info(line_prefix(context) .. "passed! :)")
+					logger.info(self:line_text(context, nil, "passed! :)"))
 				else
-					logger.warn(line_prefix(context) .. "returned neither true nor false, but instead " .. tostring(result) .. "? :S")
+					logger.warn(self:line_text(context, nil, "returned neither true nor false, but instead " .. tostring(result) .. "? :S"))
 				end
 				return result
 			end
@@ -360,7 +368,9 @@ do
 			output[#output + 1] = function()
 				return logger.info(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context.path)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
 			end
+			context.test_count = #self.tests
 			for test_index, test in ipairs(self.tests) do
+				context.test_index = test_index
 				local subcontext = test:extrapolate_subcontext(context)
 				local events = { }
 				local skippy = test:should_skip(config, subcontext)
