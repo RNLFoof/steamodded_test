@@ -70,28 +70,47 @@ _n_tabs = (indentation) ->
 
 -- Meat and potatoes
 
-export class Test
+export class TestBase
+    path_string: (context) -> table.concat(context.path, "/")
+    gather_events_config_with_defaults: (config) ->
+        defaults = {
+            whitelist: ".*"
+        }
+        return {...defaults, ...config}
+    gather_events_context_with_defaults: (context) =>
+        defaults = {
+            indentation: 0
+            path: {}
+        }
+        output = {...defaults, ...context}
+        output.path = {...output.path, @name}  -- You might be wondering if having the name be appended is *really* a default, and like, yeah man. sure.  
+        return output
+    
+export class Test extends TestBase
     new: (name, funcs, prep=->) =>
         @name = name
         @funcs = funcs  -- Can be a single function or an array of them
     
-    gather_events: (indentation=0) =>
+    gather_events: (config={}, _context={}) =>
+        config = @.gather_events_config_with_defaults(config)
+        context = @gather_events_context_with_defaults(_context)
+
         output = _put_in_array_if_alone(@funcs)
         output[] = (result) -> 
                 if result == "FUCK!!!"
-                    logger.warn(_n_tabs(indentation) .. "\tTest \"#{@name}\" errored! See above...")
+                    logger.warn(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" errored! See above...")
                     result = false
                 elseif result == false
-                    logger.warn(_n_tabs(indentation) .. "\tTest \"#{@name}\" failed! :(")
+                    logger.warn(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" failed! :(")
                 elseif result == true
-                    logger.info(_n_tabs(indentation) .. "\tTest \"#{@name}\" passed! :)")
+                    logger.info(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" passed! :)")
                 else
-                    logger.warn(_n_tabs(indentation) .. "\tTest \"#{@name}\" returned neither true nor false, but instead #{result}? :S")
+                    logger.warn(_n_tabs(context.indentation) .. "\tTest \"#{@.path_string(context)}\" returned neither true nor false, but instead #{result}? :S")
                 result
         return output
 
 
-export class TestBundle
+export class TestBundle extends TestBase
     new: (name, tests) =>
         @name = name
         @tests = tests
@@ -99,15 +118,21 @@ export class TestBundle
     run: =>
         _run_ordered_events(self\gather_events())
 
-    gather_events: (indentation=0) =>
+    gather_events: (config={}, _context={}) =>
+        config = @.gather_events_config_with_defaults(config)
+        context = @gather_events_context_with_defaults(_context)
+
         output = {}
         tally = {passed: 0, failed: 0}
         output[] = ->
-            logger.info(_n_tabs(indentation) .. "Running test bundle \"#{@name}\" (contains #{#@tests} subtest(s))...")
+            logger.info(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context)}\" (contains #{#@tests} subtest(s))...")
 
         for _, test in ipairs(@tests)
-            -- print("Gathering events for #{test.name}")
-            events = test\gather_events(indentation+1)
+            subcontext = {...context} -- This isn't a deep copy so be careful :)
+            subcontext.indentation += 1
+            subcontext.path = {...subcontext.path}
+            events = test\gather_events(config, subcontext)
+            
             output[] = -> G.E_MANAGER\clear_queue()
             for _, event in ipairs(events)
                 output[] = event
@@ -116,7 +141,7 @@ export class TestBundle
         output[] = ->
             all_passed = tally.failed == 0
             via = all_passed and logger.info or logger.error
-            via(_n_tabs(indentation) .. "...done with \"#{@name}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
+            via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context)}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
             return all_passed
         
         output

@@ -97,27 +97,80 @@ local _n_tabs
 _n_tabs = function(indentation)
 	return string.rep("\t", indentation)
 end
-local Test
+local TestBase
 do
 	local _class_0
 	local _base_0 = {
-		gather_events = function(self, indentation)
-			if indentation == nil then
-				indentation = 0
-			end
-			local output = _put_in_array_if_alone(self.funcs)
-			output[#output + 1] = function(result)
-				if result == "FUCK!!!" then
-					logger.warn(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" errored! See above...")
-					result = false
-				elseif result == false then
-					logger.warn(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" failed! :(")
-				elseif result == true then
-					logger.info(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" passed! :)")
+		path_string = function(context)
+			return table.concat(context.path, "/")
+		end,
+		gather_events_config_with_defaults = function(config)
+			local defaults = {
+				whitelist = ".*"
+			}
+			local _tab_0 = { }
+			local _idx_0 = 1
+			for _key_0, _value_0 in pairs(defaults) do
+				if _idx_0 == _key_0 then
+					_tab_0[#_tab_0 + 1] = _value_0
+					_idx_0 = _idx_0 + 1
 				else
-					logger.warn(_n_tabs(indentation) .. "\tTest \"" .. tostring(self.name) .. "\" returned neither true nor false, but instead " .. tostring(result) .. "? :S")
+					_tab_0[_key_0] = _value_0
 				end
-				return result
+			end
+			local _idx_1 = 1
+			for _key_0, _value_0 in pairs(config) do
+				if _idx_1 == _key_0 then
+					_tab_0[#_tab_0 + 1] = _value_0
+					_idx_1 = _idx_1 + 1
+				else
+					_tab_0[_key_0] = _value_0
+				end
+			end
+			return _tab_0
+		end,
+		gather_events_context_with_defaults = function(self, context)
+			local defaults = {
+				indentation = 0,
+				path = { }
+			}
+			local output
+			do
+				local _tab_0 = { }
+				local _idx_0 = 1
+				for _key_0, _value_0 in pairs(defaults) do
+					if _idx_0 == _key_0 then
+						_tab_0[#_tab_0 + 1] = _value_0
+						_idx_0 = _idx_0 + 1
+					else
+						_tab_0[_key_0] = _value_0
+					end
+				end
+				local _idx_1 = 1
+				for _key_0, _value_0 in pairs(context) do
+					if _idx_1 == _key_0 then
+						_tab_0[#_tab_0 + 1] = _value_0
+						_idx_1 = _idx_1 + 1
+					else
+						_tab_0[_key_0] = _value_0
+					end
+				end
+				output = _tab_0
+			end
+			do
+				local _tab_0 = { }
+				local _obj_0 = output.path
+				local _idx_0 = 1
+				for _key_0, _value_0 in pairs(_obj_0) do
+					if _idx_0 == _key_0 then
+						_tab_0[#_tab_0 + 1] = _value_0
+						_idx_0 = _idx_0 + 1
+					else
+						_tab_0[_key_0] = _value_0
+					end
+				end
+				_tab_0[#_tab_0 + 1] = self.name
+				output.path = _tab_0
 			end
 			return output
 		end
@@ -126,15 +179,9 @@ do
 		_base_0.__index = _base_0
 	end
 	_class_0 = setmetatable({
-		__init = function(self, name, funcs, prep)
-			if prep == nil then
-				prep = function() end
-			end
-			self.name = name
-			self.funcs = funcs
-		end,
+		__init = function() end,
 		__base = _base_0,
-		__name = "Test"
+		__name = "TestBase"
 	}, {
 		__index = _base_0,
 		__call = function(cls, ...)
@@ -144,30 +191,141 @@ do
 		end
 	})
 	_base_0.__class = _class_0
+	TestBase = _class_0
+end
+_module_0["TestBase"] = TestBase
+local Test
+do
+	local _class_0
+	local _parent_0 = TestBase
+	local _base_0 = {
+		gather_events = function(self, config, _context)
+			if config == nil then
+				config = { }
+			end
+			if _context == nil then
+				_context = { }
+			end
+			config = self.gather_events_config_with_defaults(config)
+			local context = self:gather_events_context_with_defaults(_context)
+			local output = _put_in_array_if_alone(self.funcs)
+			output[#output + 1] = function(result)
+				if result == "FUCK!!!" then
+					logger.warn(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" errored! See above...")
+					result = false
+				elseif result == false then
+					logger.warn(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" failed! :(")
+				elseif result == true then
+					logger.info(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" passed! :)")
+				else
+					logger.warn(_n_tabs(context.indentation) .. "\tTest \"" .. tostring(self.path_string(context)) .. "\" returned neither true nor false, but instead " .. tostring(result) .. "? :S")
+				end
+				return result
+			end
+			return output
+		end
+	}
+	for _key_0, _val_0 in pairs(_parent_0.__base) do
+		if _base_0[_key_0] == nil and _key_0:match("^__") and not (_key_0 == "__index" and _val_0 == _parent_0.__base) then
+			_base_0[_key_0] = _val_0
+		end
+	end
+	if _base_0.__index == nil then
+		_base_0.__index = _base_0
+	end
+	setmetatable(_base_0, _parent_0.__base)
+	_class_0 = setmetatable({
+		__init = function(self, name, funcs, prep)
+			if prep == nil then
+				prep = function() end
+			end
+			self.name = name
+			self.funcs = funcs
+		end,
+		__base = _base_0,
+		__name = "Test",
+		__parent = _parent_0
+	}, {
+		__index = function(cls, name)
+			local val = rawget(_base_0, name)
+			if val == nil then
+				local parent = rawget(cls, "__parent")
+				if parent then
+					return parent[name]
+				end
+			else
+				return val
+			end
+		end,
+		__call = function(cls, ...)
+			local _self_0 = setmetatable({ }, _base_0)
+			cls.__init(_self_0, ...)
+			return _self_0
+		end
+	})
+	_base_0.__class = _class_0
+	if _parent_0.__inherited then
+		_parent_0.__inherited(_parent_0, _class_0)
+	end
 	Test = _class_0
 end
 _module_0["Test"] = Test
 local TestBundle
 do
 	local _class_0
+	local _parent_0 = TestBase
 	local _base_0 = {
 		run = function(self)
 			return _run_ordered_events(self:gather_events())
 		end,
-		gather_events = function(self, indentation)
-			if indentation == nil then
-				indentation = 0
+		gather_events = function(self, config, _context)
+			if config == nil then
+				config = { }
 			end
+			if _context == nil then
+				_context = { }
+			end
+			config = self.gather_events_config_with_defaults(config)
+			local context = self:gather_events_context_with_defaults(_context)
 			local output = { }
 			local tally = {
 				passed = 0,
 				failed = 0
 			}
 			output[#output + 1] = function()
-				return logger.info(_n_tabs(indentation) .. "Running test bundle \"" .. tostring(self.name) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
+				return logger.info(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
 			end
 			for _, test in ipairs(self.tests) do
-				local events = test:gather_events(indentation + 1)
+				local subcontext
+				do
+					local _tab_0 = { }
+					local _idx_0 = 1
+					for _key_0, _value_0 in pairs(context) do
+						if _idx_0 == _key_0 then
+							_tab_0[#_tab_0 + 1] = _value_0
+							_idx_0 = _idx_0 + 1
+						else
+							_tab_0[_key_0] = _value_0
+						end
+					end
+					subcontext = _tab_0
+				end
+				subcontext.indentation = subcontext.indentation + 1
+				do
+					local _tab_0 = { }
+					local _obj_0 = subcontext.path
+					local _idx_0 = 1
+					for _key_0, _value_0 in pairs(_obj_0) do
+						if _idx_0 == _key_0 then
+							_tab_0[#_tab_0 + 1] = _value_0
+							_idx_0 = _idx_0 + 1
+						else
+							_tab_0[_key_0] = _value_0
+						end
+					end
+					subcontext.path = _tab_0
+				end
+				local events = test:gather_events(config, subcontext)
 				output[#output + 1] = function()
 					return G.E_MANAGER:clear_queue()
 				end
@@ -182,24 +340,41 @@ do
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
 				local via = all_passed and logger.info or logger.error
-				via(_n_tabs(indentation) .. "...done with \"" .. tostring(self.name) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
+				via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context)) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
 				return all_passed
 			end
 			return output
 		end
 	}
+	for _key_0, _val_0 in pairs(_parent_0.__base) do
+		if _base_0[_key_0] == nil and _key_0:match("^__") and not (_key_0 == "__index" and _val_0 == _parent_0.__base) then
+			_base_0[_key_0] = _val_0
+		end
+	end
 	if _base_0.__index == nil then
 		_base_0.__index = _base_0
 	end
+	setmetatable(_base_0, _parent_0.__base)
 	_class_0 = setmetatable({
 		__init = function(self, name, tests)
 			self.name = name
 			self.tests = tests
 		end,
 		__base = _base_0,
-		__name = "TestBundle"
+		__name = "TestBundle",
+		__parent = _parent_0
 	}, {
-		__index = _base_0,
+		__index = function(cls, name)
+			local val = rawget(_base_0, name)
+			if val == nil then
+				local parent = rawget(cls, "__parent")
+				if parent then
+					return parent[name]
+				end
+			else
+				return val
+			end
+		end,
 		__call = function(cls, ...)
 			local _self_0 = setmetatable({ }, _base_0)
 			cls.__init(_self_0, ...)
@@ -207,6 +382,9 @@ do
 		end
 	})
 	_base_0.__class = _class_0
+	if _parent_0.__inherited then
+		_parent_0.__inherited(_parent_0, _class_0)
+	end
 	TestBundle = _class_0
 end
 _module_0["TestBundle"] = TestBundle
@@ -552,7 +730,6 @@ if success and dpAPI.isVersionCompatible(1) then
 			return "here we go :)"
 		end
 	})
-	print(result)
 	if (not success) and (not string.match(result, "This command already exists$")) then
 		error(result)
 	end
