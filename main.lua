@@ -106,7 +106,8 @@ do
 		end,
 		gather_events_config_with_defaults = function(config)
 			local defaults = {
-				whitelist = ".*"
+				whitelist = ".*",
+				failed_only = false
 			}
 			local _tab_0 = { }
 			local _idx_0 = 1
@@ -275,8 +276,11 @@ do
 	local _class_0
 	local _parent_0 = TestBase
 	local _base_0 = {
-		run = function(self)
-			return _run_ordered_events(self:gather_events())
+		run = function(self, config)
+			if config == nil then
+				config = { }
+			end
+			return _run_ordered_events(self:gather_events(config))
 		end,
 		gather_events = function(self, config, _context)
 			if config == nil then
@@ -389,9 +393,15 @@ do
 end
 _module_0["TestBundle"] = TestBundle
 local run_all_tests
-run_all_tests = function()
+run_all_tests = function(config)
+	if config == nil then
+		config = { }
+	end
 	G.E_MANAGER:clear_queue()
-	return G.steamodded_tests:run()
+	if config.failed_only then
+		print("Running only tests that didn't succeed on their last run...")
+	end
+	return G.steamodded_tests:run(config)
 end
 _module_0["run_all_tests"] = run_all_tests
 local _init
@@ -716,17 +726,88 @@ do
 		return assert_ge(G.GAME.dollars, compare_dollars_to, 'dollars')
 	end
 end
+local subcommands = {
+	failed = {
+		["function"] = function()
+			config.failed_only = true
+		end,
+		description = "Runs only tests that didn't succeed the last time they were ran (this includes new tests that didn't succeed last time because there wasn't a last time)"
+	}
+}
+for subcommand_name, subcommand in pairs(subcommands) do
+	subcommand.aliases = {
+		"-" .. string.sub(subcommand_name, 1, 1),
+		"--" .. subcommand_name
+	}
+end
+local config_from_string
+config_from_string = function(input_string)
+	local context = {
+		tokens = string.gmatch(input_string, "[^%s]+"),
+		token_index = 1
+	}
+	local config = { }
+	while context.token_index <= #context.tokens do
+		local token = context.tokens[context.token_index]
+		for subcommand_name, subcommand in pairs(subcommands) do
+			for alias in subcommand.aliases do
+				local _continue_0 = false
+				repeat
+					if token ~= alias then
+						_continue_0 = true
+						break
+					end
+					subcommand["function"](context)
+					_continue_0 = true
+				until true
+				if not _continue_0 then
+					break
+				end
+			end
+		end
+		context.token_index = context.token_index + 1
+	end
+end
 local success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1) then
 	local debugplus = dpAPI.registerID("steamodded_test")
 	logger = debugplus.logger
+	local desc_lines = { }
+	for subcommand_name, subcommand in pairs(subcommands) do
+		desc_lines[#desc_lines + 1] = {
+			table.concat(subcommand.aliases, ', '),
+			subcommand.description
+		}
+	end
+	local aliases_max_width = math.max(unpack((function()
+		local _accum_0 = { }
+		local _len_0 = 1
+		for _index_0 = 1, #desc_lines do
+			local desc_line = desc_lines[_index_0]
+			_accum_0[_len_0] = #desc_line[1]
+			_len_0 = _len_0 + 1
+		end
+		return _accum_0
+	end)()))
+	local desc = "IDK man!!! It runs your tests and tells you the results!! has subcommand(s) tho :)\n"
+	desc = desc .. table.concat((function()
+		local _accum_0 = { }
+		local _len_0 = 1
+		for _index_0 = 1, #desc_lines do
+			local desc_line = desc_lines[_index_0]
+			_accum_0[_len_0] = "\t" .. desc_line[1] .. string.rep(" ", aliases_max_width + 3 - #desc_line[1]) .. desc_line[2]
+			_len_0 = _len_0 + 1
+		end
+		return _accum_0
+	end)(), "\n")
 	local result
 	success, result = pcall(debugplus.addCommand, {
 		name = "test",
 		shortDesc = "Runs all tests.",
-		desc = "IDK man!!! It runs your tests and tells you the results!!",
-		exec = function(args, rawArgs, dp)
-			run_all_tests()
+		desc = desc,
+		exec = function(args, raw_args, dp)
+			local config = config_from_string(raw_args)
+			run_all_tests(config)
 			return "here we go :)"
 		end
 	})

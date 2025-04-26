@@ -74,7 +74,8 @@ export class TestBase
     path_string: (context) -> table.concat(context.path, "/")
     gather_events_config_with_defaults: (config) ->
         defaults = {
-            whitelist: ".*"
+            whitelist: ".*",
+            failed_only: false
         }
         return {...defaults, ...config}
     gather_events_context_with_defaults: (context) =>
@@ -115,8 +116,8 @@ export class TestBundle extends TestBase
         @name = name
         @tests = tests
     
-    run: =>
-        _run_ordered_events(self\gather_events())
+    run: (config={}) =>
+        _run_ordered_events(self\gather_events(config))
 
     gather_events: (config={}, _context={}) =>
         config = @.gather_events_config_with_defaults(config)
@@ -147,13 +148,12 @@ export class TestBundle extends TestBase
         output
 
 
-export run_all_tests =  ->
-    -- _run_ordered_events(G.steamodded_tests.tests[1]\gather_events!)
-    -- print()
-    -- print()
-    -- print()
-    G.E_MANAGER\clear_queue()
-    G.steamodded_tests\run!
+export run_all_tests = (config={}) ->
+    G.E_MANAGER::clear_queue()
+
+    print("Running only tests that didn't succeed on their last run...") if config.failed_only
+
+    G.steamodded_tests::run(config)
         
 _init = () ->
     G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
@@ -352,17 +352,59 @@ $define_many_assertion_functions
 
 -- DebugPlus stuff
 
+subcommands = {
+    failed: {
+        function: -> config.failed_only = true,
+        description: "Runs only tests that didn't succeed the last time they were ran (this includes new tests that didn't succeed last time because there wasn't a last time)"
+    }
+}
+for subcommand_name, subcommand in pairs(subcommands)
+    subcommand.aliases = {
+        "-"..string.sub(subcommand_name,1,1)
+        "--"..subcommand_name
+    }
+
+config_from_string = (input_string) ->
+    context = {
+        tokens: string.gmatch(input_string, "[^%s]+")
+        token_index: 1
+    }
+    config = {}
+
+    while context.token_index <= #context.tokens
+        token = context.tokens[context.token_index]
+        for subcommand_name, subcommand in pairs(subcommands)
+            for alias in subcommand.aliases
+                if token != alias then continue
+                subcommand.function(context)
+        context.token_index += 1
+
 success, dpAPI = pcall(require, "debugplus-api")
 if success and dpAPI.isVersionCompatible(1)
     local debugplus = dpAPI.registerID("steamodded_test")
     logger = debugplus.logger
 
+    desc_lines = {}
+    for subcommand_name, subcommand in pairs(subcommands)
+        desc_lines[] = {
+            table.concat(subcommand.aliases, ', ')
+            subcommand.description
+        }
+    aliases_max_width = math.max(unpack [#desc_line[1] for desc_line in *desc_lines])
+
+    desc = "IDK man!!! It runs your tests and tells you the results!! has subcommand(s) tho :)\n"
+    desc ..= table.concat(
+        ["\t" .. desc_line[1] .. string.rep(" ", aliases_max_width + 3 - #desc_line[1]) .. desc_line[2] for desc_line in *desc_lines],  -- This has to be on one line it seems which is kinda annoying
+        "\n"
+    )
+
     success, result = pcall(debugplus.addCommand, {
         name: "test",
         shortDesc: "Runs all tests.",
-        desc: "IDK man!!! It runs your tests and tells you the results!!",
-        exec: (args, rawArgs, dp) ->
-            run_all_tests()
+        desc: desc,
+        exec: (args, raw_args, dp) ->
+            config = config_from_string(raw_args)  -- Uses raw args because I want to eventually decouple this from dbp
+            run_all_tests(config)
             "here we go :)"
     })
     if (not success) and (not string.match(result, "This command already exists$"))
