@@ -188,7 +188,7 @@ do
 		Status("FAILED", G.C.ORANGE, "warn", "failed"),
 		Status("ERRORED", G.C.RED, "warn", "failed"),
 		Status("CONFUSED", G.C.EDITION, "warn", "failed"),
-		Status("SKIPPED", mix_colours(G.C.YELLOW, G.C.JOKER_GREY, 0.5), "info", "skipped")
+		Status("SKIPPED", mix_colours(G.C.BLACK, G.C.JOKER_GREY, 0.5), "info", "skipped")
 	}
 	for _index_0 = 1, #_list_0 do
 		local x = _list_0[_index_0]
