@@ -1,7 +1,7 @@
 local testing = assert(SMODS.load_file("libs\\steamodded_test\\main.lua"))()
 local _obj_0 = G.steamodded_tests.tests
-_obj_0[#_obj_0 + 1] = testing.TestBundle("Example tests", {
-	testing.TestBundle("Basic tests", {
+_obj_0[#_obj_0 + 1] = testing.TestBundle("examples", {
+	testing.TestBundle("basic", {
 		testing.Test("Always passes", function()
 			return true
 		end),
@@ -15,7 +15,7 @@ _obj_0[#_obj_0 + 1] = testing.TestBundle("Example tests", {
 			return assert(false)
 		end)
 	}),
-	testing.TestBundle("Main game tests", {
+	testing.TestBundle("main game", {
 		testing.Test("Scoring an Ace", {
 			testing.create_state_steps(),
 			function()

@@ -252,7 +252,7 @@ export run_all_tests = (config={}) ->
     G.steamodded_tests::run(config)
         
 _init = () ->
-    G.steamodded_tests = TestBundle("All tests", {}) if G.steamodded_tests == nil
+    G.steamodded_tests = TestBundle("all", {}) if G.steamodded_tests == nil
 _init()
 
 -- Assertions

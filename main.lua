@@ -562,7 +562,7 @@ _module_0["run_all_tests"] = run_all_tests
 local _init
 _init = function()
 	if G.steamodded_tests == nil then
-		G.steamodded_tests = TestBundle("All tests", { })
+		G.steamodded_tests = TestBundle("all", { })
 	end
 end
 _init()

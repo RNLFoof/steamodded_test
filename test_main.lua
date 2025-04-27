@@ -1,7 +1,7 @@
 local testing = assert(SMODS.load_file("libs\\steamodded_test\\main.lua"))()
 local _obj_0 = G.steamodded_tests.tests
-_obj_0[#_obj_0 + 1] = testing.TestBundle("Test tests", {
-	testing.TestBundle("Assertion function tests", {
+_obj_0[#_obj_0 + 1] = testing.TestBundle("test tests", {
+	testing.TestBundle("assertions", {
 		testing.Test("assert_eq", function()
 			return testing.assert_eq(5, 5)
 		end),
