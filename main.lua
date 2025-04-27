@@ -8,6 +8,29 @@ local logger = {
 	warn = print,
 	error = print
 }
+local dbp_success, dpAPI = pcall(require, "debugplus-api")
+local debugplus = nil
+local dbp_logger_dot_lua = nil
+if dbp_success and dpAPI.isVersionCompatible(1) then
+	debugplus = dpAPI.registerID("steamodded_test")
+	logger = debugplus.logger
+	logger.advanced = logger.advanced or function(data, ...)
+		local args = {
+			...
+		}
+		do
+			local _accum_0 = { }
+			local _len_0 = 1
+			for _index_0 = 2, #args do
+				local arg = args[_index_0]
+				_accum_0[_len_0] = arg
+				_len_0 = _len_0 + 1
+			end
+			args = _accum_0
+		end
+		return logger[string.lower(data.level)](unpack(args))
+	end
+end
 local _concat_lists
 _concat_lists = function(list_of_lists)
 	local output = { }
@@ -112,6 +135,66 @@ if love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) ~= nil then
 	if contents ~= "" then
 		context_defaults.previous_results = json.decode(contents)
 	end
+end
+local Status
+do
+	local _class_0
+	local _base_0 = {
+		passed = function(self)
+			return self.simplified_result == "passed"
+		end,
+		failed = function(self)
+			return self.simplified_result == "failed"
+		end,
+		skipped = function(self)
+			return self.simplified_result == "skipped"
+		end,
+		write = function(self, ...)
+			return logger.advanced({
+				colour = self.color,
+				level = string.upper(self.dbp_level)
+			}, "[test]", ...)
+		end
+	}
+	if _base_0.__index == nil then
+		_base_0.__index = _base_0
+	end
+	_class_0 = setmetatable({
+		__init = function(self, name, color, dbp_level, simplified_result)
+			self.name = name
+			self.color = color
+			self.dbp_level = dbp_level
+			self.simplified_result = simplified_result
+		end,
+		__base = _base_0,
+		__name = "Status"
+	}, {
+		__index = _base_0,
+		__call = function(cls, ...)
+			local _self_0 = setmetatable({ }, _base_0)
+			cls.__init(_self_0, ...)
+			return _self_0
+		end
+	})
+	_base_0.__class = _class_0
+	Status = _class_0
+end
+local statuses
+do
+	local _tbl_0 = { }
+	local _list_0 = {
+		Status("LOG", G.C.JOKER_GREY, "info", nil),
+		Status("PASSED", G.C.GREEN, "info", "passed"),
+		Status("FAILED", G.C.ORANGE, "warn", "failed"),
+		Status("ERRORED", G.C.RED, "warn", "failed"),
+		Status("CONFUSED", G.C.EDITION, "warn", "failed"),
+		Status("SKIPPED", mix_colours(G.C.YELLOW, G.C.JOKER_GREY, 0.5), "info", "skipped")
+	}
+	for _index_0 = 1, #_list_0 do
+		local x = _list_0[_index_0]
+		_tbl_0[x.name] = x
+	end
+	statuses = _tbl_0
 end
 local _anon_func_0 = function(pairs, path, self)
 	local _tab_0 = { }
@@ -279,14 +362,14 @@ do
 			local output = _put_in_array_if_alone(self.funcs)
 			output[#output + 1] = function(result)
 				if result == "FUCK!!!" then
-					logger.warn(self:line_text(context, nil, "errored! See above..."))
+					statuses.ERRORED:write(self:line_text(context, nil, "errored! See above..."))
 					result = false
 				elseif result == false then
-					logger.warn(self:line_text(context, nil, "failed! :("))
+					statuses.FAILED:write(self:line_text(context, nil, "failed! :("))
 				elseif result == true then
-					logger.info(self:line_text(context, nil, "passed! :)"))
+					statuses.PASSED:write(self:line_text(context, nil, "passed! :)"))
 				else
-					logger.warn(self:line_text(context, nil, "returned neither true nor false, but instead " .. tostring(result) .. "? :S"))
+					statuses.CONFUSED:write(self:line_text(context, nil, "returned neither true nor false, but instead " .. tostring(result) .. "? :S"))
 				end
 				return result
 			end
@@ -366,7 +449,7 @@ do
 				skipped = 0
 			}
 			output[#output + 1] = function()
-				return logger.info(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context.path)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
+				return statuses.LOG:write(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context.path)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
 			end
 			context.test_count = #self.tests
 			for test_index, test in ipairs(self.tests) do
@@ -377,7 +460,7 @@ do
 				if skippy then
 					output[#output + 1] = function(result)
 						tally.skipped = tally.skipped + 1
-						return logger.warn(_n_tabs(subcontext.indentation) .. "Skipped \"" .. tostring(self.path_string(subcontext.path)) .. "\"! Reason: " .. tostring(skippy))
+						return statuses.SKIPPED:write(_n_tabs(subcontext.indentation) .. "Skipped \"" .. tostring(self.path_string(subcontext.path)) .. "\"! Reason: " .. tostring(skippy))
 					end
 				else
 					events = test:gather_events(config, context)
@@ -396,7 +479,19 @@ do
 			end
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
-				local via = all_passed and logger.info or logger.error
+				local via = all_passed and (function()
+					local _base_1 = statuses.PASSED
+					local _fn_0 = _base_1.write
+					return _fn_0 and function(...)
+						return _fn_0(_base_1, ...)
+					end
+				end)() or (function()
+					local _base_1 = statuses.FAILED
+					local _fn_0 = _base_1.write
+					return _fn_0 and function(...)
+						return _fn_0(_base_1, ...)
+					end
+				end)()
 				if tally.skipped > 0 then
 					via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context.path)) .. "\". Ran " .. tostring(#self.tests - tally.skipped) .. "/" .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed, " .. tostring(tally.skipped) .. " skipped.")
 				else
@@ -459,7 +554,7 @@ run_all_tests = function(config)
 	end
 	G.E_MANAGER:clear_queue()
 	if config.failed_only then
-		print("Running only tests that didn't succeed on their last run...")
+		statuses.LOG:write("Running only tests that didn't succeed on their last run...")
 	end
 	return G.steamodded_tests:run(config)
 end
@@ -829,7 +924,6 @@ config_from_string = function(input_string)
 						_continue_0 = true
 						break
 					end
-					print(context)
 					subcommand["function"](context)
 					found = true
 					_continue_0 = true
@@ -846,10 +940,7 @@ config_from_string = function(input_string)
 	end
 	return context.config
 end
-local success, dpAPI = pcall(require, "debugplus-api")
-if success and dpAPI.isVersionCompatible(1) then
-	local debugplus = dpAPI.registerID("steamodded_test")
-	logger = debugplus.logger
+if dbp_success and dpAPI.isVersionCompatible(1) then
 	local desc_lines = { }
 	for subcommand_name, subcommand in pairs(subcommands) do
 		desc_lines[#desc_lines + 1] = {
@@ -878,8 +969,7 @@ if success and dpAPI.isVersionCompatible(1) then
 		end
 		return _accum_0
 	end)(), "\n")
-	local result
-	success, result = pcall(debugplus.addCommand, {
+	local success, result = pcall(debugplus.addCommand, {
 		name = "test",
 		shortDesc = "Runs all tests.",
 		desc = desc,
@@ -892,5 +982,6 @@ if success and dpAPI.isVersionCompatible(1) then
 	if (not success) and (not string.match(result, "This command already exists$")) then
 		error(result)
 	end
+	local dbp_console_dot_lua = assert(SMODS.load_file('debugplus/console.lua', "DebugPlus"))()
 end
 return _module_0

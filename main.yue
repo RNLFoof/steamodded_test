@@ -10,6 +10,24 @@ logger = { -- Placeholder logger, for when DebugPlus isn't available
     error: print
 }
 
+dbp_success, dpAPI = pcall(require, "debugplus-api")
+debugplus = nil
+dbp_logger_dot_lua = nil
+if dbp_success and dpAPI.isVersionCompatible(1)
+    debugplus = dpAPI.registerID("steamodded_test")
+    logger = debugplus.logger
+    -- dbp_logger_dot_lua = assert(SMODS.load_file('debugplus/logger.lua', "DebugPlus"))()
+
+    -- Hopefully, this is in there: https://github.com/WilsontheWolf/DebugPlus/pull/24
+    -- Otherwise it makes a dummy that's less good
+    -- I tried to just do this with Lovely, and maybe I'm just using it wrong, but it doesn't seem to want to inject into other mods
+    logger.advanced = logger.advanced or (data, ...) ->
+        -- Trim the first arg, because it's always gonna just be "[test]", and there's already "[steamodded_test]" at the start of each of these
+        args = {...}
+        args = [arg for arg in *args[2,]]
+        logger[string.lower(data.level)](unpack args)
+    -- dbp_logger_dot_lua.registerLogHandler()
+
 -- Internal stuff
 
 _concat_lists = (list_of_lists) ->
@@ -87,6 +105,26 @@ if love.filesystem.getInfo(PREVIOUS_RESULTS_PATH) != nil
     if contents != ""
         context_defaults.previous_results = json.decode(contents)
 
+class Status
+    new: (@name, @color, @dbp_level, @simplified_result) =>
+    passed:  => @simplified_result == "passed"
+    failed:  => @simplified_result == "failed"
+    skipped: => @simplified_result == "skipped"
+    write: (...) => 
+        logger.advanced({
+            colour: @color,
+            level:  string.upper(@dbp_level),
+        }, "[test]", ...)
+
+statuses = {x.name, x for x in *{
+    Status("LOG",      G.C.JOKER_GREY,                               "info", nil      )
+    Status("PASSED",   G.C.GREEN,                                    "info", "passed" )
+    Status("FAILED",   G.C.ORANGE,                                   "warn", "failed" )
+    Status("ERRORED",  G.C.RED,                                      "warn", "failed" )
+    Status("CONFUSED", G.C.EDITION,                                  "warn", "failed" )
+    Status("SKIPPED",  mix_colours(G.C.YELLOW, G.C.JOKER_GREY, 0.5), "info", "skipped")
+}}
+
 export class TestBase
     path_string: (path) -> table.concat(path, "/")
     path_string_tag_yourself: (path) => @.path_string({...path, @name})
@@ -140,14 +178,14 @@ export class Test extends TestBase
         
         output[] = (result) -> 
             if result == "FUCK!!!"
-                logger.warn(@line_text(context, nil, "errored! See above..."))
+                statuses.ERRORED::write(@line_text(context, nil, "errored! See above..."))
                 result = false
             elseif result == false
-                logger.warn(@line_text(context, nil, "failed! :("))
+                statuses.FAILED::write(@line_text(context, nil, "failed! :("))
             elseif result == true
-                logger.info(@line_text(context, nil, "passed! :)"))
+                statuses.PASSED::write(@line_text(context, nil, "passed! :)"))
             else
-                logger.warn(@line_text(context, nil, "returned neither true nor false, but instead #{result}? :S"))
+                statuses.CONFUSED::write(@line_text(context, nil, "returned neither true nor false, but instead #{result}? :S"))
             result
         return output
 
@@ -168,7 +206,7 @@ export class TestBundle extends TestBase
         output = {}
         tally = {passed: 0, failed: 0, skipped: 0}
         output[] = ->
-            logger.info(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context.path)}\" (contains #{#@tests} subtest(s))...")
+            statuses.LOG::write(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context.path)}\" (contains #{#@tests} subtest(s))...")
 
         context.test_count = #@tests
         for test_index, test in ipairs(@tests)
@@ -180,10 +218,10 @@ export class TestBundle extends TestBase
             if skippy
                 output[] = (result) -> 
                     tally.skipped += 1
-                    logger.warn(_n_tabs(subcontext.indentation) .. "Skipped \"#{@.path_string(subcontext.path)}\"! Reason: #{skippy}")
+                    statuses.SKIPPED::write(_n_tabs(subcontext.indentation) .. "Skipped \"#{@.path_string(subcontext.path)}\"! Reason: #{skippy}")
             else
                 events = test\gather_events(config, context)
-                output[] = -> G.E_MANAGER\clear_queue()
+                output[] = -> G.E_MANAGER::clear_queue()
                 for _, event in ipairs(events)
                     output[] = event
                 output[] = (result) -> 
@@ -192,7 +230,7 @@ export class TestBundle extends TestBase
 
         output[] = ->
             all_passed = tally.failed == 0
-            via = all_passed and logger.info or logger.error
+            via = all_passed and statuses.PASSED::write or statuses.FAILED::write
             if tally.skipped > 0
                 via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context.path)}\". Ran #{#@tests - tally.skipped}/#{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed, #{tally.skipped} skipped.")
             else
@@ -209,7 +247,7 @@ export class TestBundle extends TestBase
 export run_all_tests = (config={}) ->
     G.E_MANAGER::clear_queue()
 
-    print("Running only tests that didn't succeed on their last run...") if config.failed_only
+    statuses.LOG::write("Running only tests that didn't succeed on their last run...") if config.failed_only
 
     G.steamodded_tests::run(config)
         
@@ -435,7 +473,6 @@ config_from_string = (input_string) ->
         for subcommand_name, subcommand in pairs(subcommands)
             for alias in *subcommand.aliases
                 if token != alias then continue
-                print(context)
                 subcommand.function(context)
                 found = true
         if not found
@@ -443,11 +480,7 @@ config_from_string = (input_string) ->
         context.token_index += 1
     return context.config
 
-success, dpAPI = pcall(require, "debugplus-api")
-if success and dpAPI.isVersionCompatible(1)
-    local debugplus = dpAPI.registerID("steamodded_test")
-    logger = debugplus.logger
-
+if dbp_success and dpAPI.isVersionCompatible(1)
     desc_lines = {}
     for subcommand_name, subcommand in pairs(subcommands)
         desc_lines[] = {
@@ -473,3 +506,5 @@ if success and dpAPI.isVersionCompatible(1)
     })
     if (not success) and (not string.match(result, "This command already exists$"))
         error(result)
+    
+    dbp_console_dot_lua = assert(SMODS.load_file('debugplus/console.lua', "DebugPlus"))()
