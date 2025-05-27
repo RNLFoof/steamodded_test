@@ -27,7 +27,7 @@ _obj_0[#_obj_0 + 1] = testing.TestBundle("examples", {
 				return testing.assert_hand_scored(16)
 			end
 		}),
-		testing.Test("Scoring an Ace (overzealous)", {
+		testing.Test("Scoring an Ace (overzealous, will fail)", {
 			testing.create_state_steps(),
 			function()
 				return testing.play_hand({

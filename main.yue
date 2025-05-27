@@ -37,8 +37,10 @@ _concat_lists = (list_of_lists) ->
             output[] = item
     return output
 
+---@param this_guy string | string[]
+---@return string[]
 _put_in_array_if_alone = (this_guy) ->
-    output = nil
+    local output
     if type(this_guy) == "function" or type(this_guy) == "string"
         output = {this_guy}
     else
@@ -147,7 +149,7 @@ export class TestBase
     extrapolate_subcontext: (context) =>
         subcontext = {...context} -- This isn't a deep copy so be careful :)
         subcontext.indentation += 1
-        subcontext.path = {...subcontext.path, @name}  -- Doesn't just append to copy the array
+        subcontext.path = {...subcontext.path, @name}  -- to copy the array, does ... instead of appending
         return subcontext
     
     line_text: (context, start_text="", end_text="") =>
@@ -160,9 +162,12 @@ export class TestBase
         end_text
     
 export class Test extends TestBase
-    new: (name, funcs, prep=->) =>
+    new: (name, funcs) =>
         @name = name
         @funcs = funcs  -- Can be a single function or an array of them
+        -- @kwargs = kwargs
+        
+        -- @kwargs.field_replacements ??= {}  -- Expects object, field_name, new_value
 
     should_skip: (config, context) => 
         if config.failed_only and context.previous_results[@.path_string(context.path)]
@@ -337,7 +342,7 @@ export playing_card_from_string = (input) ->
     if a != nil
         rank = string.sub(input, a, b)
 
-    card = Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.c_base, {playing_card: G.playing_card})
+    card = Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS.c_base, {playing_card: G.playing_card})
     card\set_base(G.P_CARDS["#{suit}_#{rank}"])
     card
 
@@ -480,7 +485,7 @@ config_from_string = (input_string) ->
         context.token_index += 1
     return context.config
 
-if dbp_success and dpAPI.isVersionCompatible(1)
+if dbp_success and dpAPI.isVersionCompatible(1) and debugplus
     desc_lines = {}
     for subcommand_name, subcommand in pairs(subcommands)
         desc_lines[] = {

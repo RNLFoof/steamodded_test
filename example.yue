@@ -17,7 +17,7 @@ G.steamodded_tests.tests[] = testing.TestBundle("examples", {
                     () -> testing.assert_hand_scored(16)
                 }),
 
-                testing.Test("Scoring an Ace (overzealous)", {
+                testing.Test("Scoring an Ace (overzealous, will fail)", {
                     testing.create_state_steps(),
                     () -> testing.play_hand({"A"}),
                     () -> testing.assert_hand_scored(99999)

@@ -43,7 +43,7 @@ _concat_lists = function(list_of_lists)
 end
 local _put_in_array_if_alone
 _put_in_array_if_alone = function(this_guy)
-	local output = nil
+	local output
 	if type(this_guy) == "function" or type(this_guy) == "string" then
 		output = {
 			this_guy
@@ -386,10 +386,7 @@ do
 	end
 	setmetatable(_base_0, _parent_0.__base)
 	_class_0 = setmetatable({
-		__init = function(self, name, funcs, prep)
-			if prep == nil then
-				prep = function() end
-			end
+		__init = function(self, name, funcs)
 			self.name = name
 			self.funcs = funcs
 		end,
@@ -744,7 +741,7 @@ playing_card_from_string = function(input)
 	if a ~= nil then
 		rank = string.sub(input, a, b)
 	end
-	local card = Card(G.play.T.x + G.play.T.w / 2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.c_base, {
+	local card = Card(G.play.T.x + G.play.T.w / 2, G.play.T.y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS.c_base, {
 		playing_card = G.playing_card
 	})
 	card:set_base(G.P_CARDS[tostring(suit) .. "_" .. tostring(rank)])
@@ -940,7 +937,7 @@ config_from_string = function(input_string)
 	end
 	return context.config
 end
-if dbp_success and dpAPI.isVersionCompatible(1) then
+if dbp_success and dpAPI.isVersionCompatible(1) and debugplus then
 	local desc_lines = { }
 	for subcommand_name, subcommand in pairs(subcommands) do
 		desc_lines[#desc_lines + 1] = {
