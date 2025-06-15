@@ -313,12 +313,12 @@ _equals = (o1, o2, ignore_mt) ->
     
     return true
 
-export assert_eq     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) ->  _equals(a, b)), expectation, "",                                 label)
+export assert_eq     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) ->     _equals(a, b)), expectation, "",                                 label)
 export assert_ne     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> not _equals(a, b)), expectation, "anything but",                     label)
-export assert_lt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <  b),         expectation, "a value less than",                label)
-export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >  b),         expectation, "a value greater than",             label)
-export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b),         expectation, "a value less than or equal to",    label)
-export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b),         expectation, "a value greater than or equal to", label)
+export assert_lt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <  b           ), expectation, "a value less than",                label)
+export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >  b           ), expectation, "a value greater than",             label)
+export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b           ), expectation, "a value less than or equal to",    label)
+export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b           ), expectation, "a value greater than or equal to", label)
 
 
 
