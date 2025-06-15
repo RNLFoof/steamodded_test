@@ -815,8 +815,12 @@ create_state_steps = function(kwargs)
 	if kwargs == nil then
 		kwargs = { }
 	end
-	kwargs.stake = kwargs.stake or 1
-	kwargs.seed = kwargs.seed or "TUTORIAL"
+	if kwargs.stake == nil then
+		kwargs.stake = 1
+	end
+	if kwargs.seed == nil then
+		kwargs.seed = "TUTORIAL"
+	end
 	return {
 		function()
 			return G.FUNCS.start_run(nil, {
@@ -864,15 +868,24 @@ _module_0["add_cards_to_hand"] = add_cards_to_hand
 local add_centers
 add_centers = function(center_keys)
 	center_keys = _put_in_array_if_alone(center_keys)
+	local added_centers = { }
 	for _, center_key in ipairs(center_keys) do
-		SMODS.add_card({
+		added_centers[#added_centers + 1] = SMODS.add_card({
 			key = center_key,
 			soulable = false,
 			no_edition = true
 		})
 	end
+	return added_centers
 end
 _module_0["add_centers"] = add_centers
+local open_arcana_pack
+open_arcana_pack = function()
+	local pack = add_centers("p_arcana_normal_2")[1]
+	pack.cost = 0
+	return pack:open()
+end
+_module_0["open_arcana_pack"] = open_arcana_pack
 local play_hand
 play_hand = function(playing_cards, kwargs)
 	if kwargs == nil then
