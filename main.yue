@@ -91,6 +91,8 @@ _run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
 _n_tabs = (indentation) ->
     string.rep("\t", indentation)
 
+_starts_with = (string, start) -> string::sub(1, #start) == start
+
 -- Meat and potatoes
 
 PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
@@ -153,7 +155,7 @@ export class TestBase
         return subcontext
     
     line_text: (context, start_text="", end_text="") =>
-        _n_tabs(context.indentation + 1) ..
+        _n_tabs(context.indentation) ..
         "[#{context.test_index}/#{context.test_count}] " ..
         start_text ..
         (start_text != "" and " " or "")..
@@ -172,6 +174,8 @@ export class Test extends TestBase
     should_skip: (config, context) => 
         if config.failed_only and context.previous_results[@.path_string(context.path)]
             return "Succeeded last time"
+        if config.path and not _starts_with(@.path_string(context.path), config.path)
+            return "Not in specified path"
         super(config, context)
     
     gather_events: (config={}, _context={}) =>
@@ -235,7 +239,14 @@ export class TestBundle extends TestBase
 
         output[] = ->
             all_passed = tally.failed == 0
-            via = all_passed and statuses.PASSED::write or statuses.FAILED::write
+            -- TODO: It can't handle sending Status.SKIPPED as the output if everything was skipped :o
+            via = (
+            if tally.failed == 0 and tally.passed == 0
+                statuses.SKIPPED::write
+            elseif all_passed
+                statuses.PASSED::write
+            else statuses.FAILED::write
+            )
             if tally.skipped > 0
                 via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context.path)}\". Ran #{#@tests - tally.skipped}/#{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed, #{tally.skipped} skipped.")
             else
@@ -272,12 +283,42 @@ _abstract_comparison_assertion = (actual, comparison, expectation, explanation="
     error_message = "Got #{actual}#{label}, but expected#{explanation} #{expectation}#{label}."
     assert(comparison(actual, expectation), error_message)
 
-export assert_eq     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a == b), expectation, "",                                 label)
-export assert_ne     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a != b), expectation, "anything but",                     label)
-export assert_lt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <  b), expectation, "a value less than",                label)
-export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >  b), expectation, "a value greater than",             label)
-export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b), expectation, "a value less than or equal to",    label)
-export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b), expectation, "a value greater than or equal to", label)
+--- https://stackoverflow.com/a/32660766
+---@param o1 any|table First object to compare
+---@param o2 any|table Second object to compare
+---@param ignore_mt boolean True to ignore metatables (a recursive function to tests tables inside tables)
+_equals = (o1, o2, ignore_mt) ->
+    if o1 == o2 then return true
+    local o1Type = type(o1)
+    local o2Type = type(o2)
+    if o1Type ~= o2Type then return false
+    if o1Type ~= 'table' then return false
+
+    if not ignore_mt
+        local mt1 = getmetatable(o1)
+        if mt1 and mt1.__eq
+            --compare using built in method
+            return o1 == o2
+
+    local keySet = {}
+
+    for key1, value1 in pairs(o1)
+        local value2 = o2[key1]
+        if value2 == nil or _equals(value1, value2, ignore_mt) == false
+            return false
+        keySet[key1] = true
+
+    for key2, _ in pairs(o2)
+        if not keySet[key2] then return false
+    
+    return true
+
+export assert_eq     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) ->  _equals(a, b)), expectation, "",                                 label)
+export assert_ne     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> not _equals(a, b)), expectation, "anything but",                     label)
+export assert_lt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <  b),         expectation, "a value less than",                label)
+export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >  b),         expectation, "a value greater than",             label)
+export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b),         expectation, "a value less than or equal to",    label)
+export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b),         expectation, "a value greater than or equal to", label)
 
 
 
@@ -451,12 +492,110 @@ macro define_many_assertion_functions =  ->
 
 $define_many_assertion_functions
 
+export assert_valid_ui = (ui, lenient=false, preceeding_path="ui", path_depth=0) ->
+    print(ui)
+    element_names = {}
+    -- This is gross but yue didn't like when I just defined them with keys (probably because they're numbers?)
+    element_names[1] = "text (G.UIT.T)"
+    element_names[2] = "box (G.UIT.B)"
+    element_names[3] = "column (G.UIT.C)"
+    element_names[4] = "row (G.UIT.R)"
+    element_names[5] = "object (G.UIT.O)"
+    element_names[7] = "root (G.UIT.ROOT)"
+    element_names[8] = "slider (G.UIT.S)"
+    element_names[9] = "input text box (G.UIT.I)"
+    element_names[0] = "default padding (G.UIT.padding)"
+
+    error_with_path = (text) -> error("In #{preceeding_path}: #{text}", 2+path_depth)
+    require_config_option = (option_name) -> if ui.config?[option_name] == nil then error_with_path("Required config option for #{element_names[ui.n]}: #{option_name}")
+    
+    assert_config_type = (path, value, type_name) -> 
+        if type(value) != nil and type(value) != type_name then error_with_path("Wrong type for #{path}: Expected a #{type_name}, got #{value}, a #{type(value)}")
+
+    switch ui.n
+        when nil
+            error_with_path("No node type specified")
+        when G.UIT.T
+            require_config_option("colour")
+            require_config_option("text")
+            require_config_option("scale")
+        when G.UIT.B
+            require_config_option("w")
+            require_config_option("h")
+        when G.UIT.C
+            -- nothing :) (required for compile)
+        when G.UIT.R
+            -- nothing :) (required for compile)
+        when G.UIT.O
+            -- nothing :) (required for compile)
+        when G.UIT.ROOT
+            -- nothing :) (required for compile)
+        when G.UIT.S
+            -- nothing :) (required for compile)
+        when G.UIT.I
+            -- nothing :) (required for compile)
+        when G.UIT.padding
+            -- nothing :) (required for compile)
+        else
+            error_with_path("Unknown node type (#{ui.n})")
+    
+    -- macro WAIT_CAN_I_JUST = (s) -> "{\"config.#{s}\", ui.config?.#{s}}"
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST align), "string")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST w), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST minw), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST maxw), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST h), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST minh), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST maxh), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST padding), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST r), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST colour), "table")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST colour?[1]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST colour?[2]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST colour?[3]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST colour?[4]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST outline_colour), "table")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST outline_colour?[1]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST outline_colour?[2]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST outline_colour?[3]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST outline_colour?[4]), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST no_fill), "boolean")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST outline), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST emboss), "number")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST hover), "boolean")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST shadow), "boolean")
+    -- assert_config_type(unpack($WAIT_CAN_I_JUST juice), "boolean")
+
+    if ui.nodes
+        for node_index, node in ipairs(ui.nodes)
+            assert_valid_ui(node, lenient, "#{preceeding_path}.nodes[#{node_index}]", path_depth+1)
+
+            if not lenient  and ui.n == G.UIT.C and node.n == G.UIT.B and #ui.nodes != 1
+                error_with_path("Balatro's UI gets buggy if you have text that isn't the only node in its column (and maybe rows too sometimes idk?)")
+    
+    return ui
+
 -- DebugPlus stuff
+
+
+config_next_token = (context) ->
+    token = context.tokens[context.token_index]
+    context.token_index += 1
+    return token
 
 subcommands = {
     failed: {
         function: (context) -> context.config.failed_only = true,
         description: "Runs only tests that didn't succeed the last time they were ran (this includes new tests that didn't succeed last time because there wasn't a last time)"
+    }
+    path: {
+        function: (context) -> 
+            context.config.path = config_next_token(context)
+            if context.config.path == nil
+                error("You need to specify a path!! :o")
+            if not _starts_with(context.config.path, "all/")
+                context.config.path = "all/" .. context.config.path
+        description: "Runs only tests within the specified path. \"all/\" is automatically prepended if not added manually."
     }
 }
 for subcommand_name, subcommand in pairs(subcommands)
@@ -473,7 +612,7 @@ config_from_string = (input_string) ->
     }
 
     while context.token_index <= #context.tokens
-        token = context.tokens[context.token_index]
+        token = config_next_token(context)
         found = false
         for subcommand_name, subcommand in pairs(subcommands)
             for alias in *subcommand.aliases
@@ -482,7 +621,7 @@ config_from_string = (input_string) ->
                 found = true
         if not found
             error("Unknown token: #{token}")
-        context.token_index += 1
+        
     return context.config
 
 if dbp_success and dpAPI.isVersionCompatible(1) and debugplus
@@ -502,7 +641,7 @@ if dbp_success and dpAPI.isVersionCompatible(1) and debugplus
 
     success, result = pcall(debugplus.addCommand, {
         name: "test",
-        shortDesc: "Runs all tests.",
+        shortDesc: "Runs all tests. uh, unless you make it do otherwise.",
         desc: desc,
         exec: (args, raw_args, dp) ->
             config = config_from_string(raw_args)  -- Uses raw args because I want to eventually decouple this from dbp

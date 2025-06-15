@@ -122,6 +122,10 @@ local _n_tabs
 _n_tabs = function(indentation)
 	return string.rep("\t", indentation)
 end
+local _starts_with
+_starts_with = function(string, start)
+	return string:sub(1, #start) == start
+end
 local PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
 local context_defaults = {
 	indentation = 0,
@@ -316,7 +320,7 @@ do
 			if end_text == nil then
 				end_text = ""
 			end
-			return _n_tabs(context.indentation + 1) .. "[" .. tostring(context.test_index) .. "/" .. tostring(context.test_count) .. "] " .. start_text .. (start_text ~= "" and " " or "") .. self.__class.__name .. " \"" .. tostring(self.path_string(context.path)) .. "\" " .. end_text
+			return _n_tabs(context.indentation) .. "[" .. tostring(context.test_index) .. "/" .. tostring(context.test_count) .. "] " .. start_text .. (start_text ~= "" and " " or "") .. self.__class.__name .. " \"" .. tostring(self.path_string(context.path)) .. "\" " .. end_text
 		end
 	}
 	if _base_0.__index == nil then
@@ -346,6 +350,9 @@ do
 		should_skip = function(self, config, context)
 			if config.failed_only and context.previous_results[self.path_string(context.path)] then
 				return "Succeeded last time"
+			end
+			if config.path and not _starts_with(self.path_string(context.path), config.path) then
+				return "Not in specified path"
 			end
 			return _class_0.__parent.__base.should_skip(self, config, context)
 		end,
@@ -476,19 +483,26 @@ do
 			end
 			output[#output + 1] = function()
 				local all_passed = tally.failed == 0
-				local via = all_passed and (function()
+				local via
+				if tally.failed == 0 and tally.passed == 0 then
+					local _base_1 = statuses.SKIPPED
+					local _fn_0 = _base_1.write
+					via = _fn_0 and function(...)
+						return _fn_0(_base_1, ...)
+					end
+				elseif all_passed then
 					local _base_1 = statuses.PASSED
 					local _fn_0 = _base_1.write
-					return _fn_0 and function(...)
+					via = _fn_0 and function(...)
 						return _fn_0(_base_1, ...)
 					end
-				end)() or (function()
+				else
 					local _base_1 = statuses.FAILED
 					local _fn_0 = _base_1.write
-					return _fn_0 and function(...)
+					via = _fn_0 and function(...)
 						return _fn_0(_base_1, ...)
 					end
-				end)()
+				end
 				if tally.skipped > 0 then
 					via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context.path)) .. "\". Ran " .. tostring(#self.tests - tally.skipped) .. "/" .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed, " .. tostring(tally.skipped) .. " skipped.")
 				else
@@ -583,13 +597,47 @@ _abstract_comparison_assertion = function(actual, comparison, expectation, expla
 	local error_message = "Got " .. tostring(actual) .. tostring(label) .. ", but expected" .. tostring(explanation) .. " " .. tostring(expectation) .. tostring(label) .. "."
 	return assert(comparison(actual, expectation), error_message)
 end
+local _equals
+_equals = function(o1, o2, ignore_mt)
+	if o1 == o2 then
+		return true
+	end
+	local o1Type = type(o1)
+	local o2Type = type(o2)
+	if o1Type ~= o2Type then
+		return false
+	end
+	if o1Type ~= 'table' then
+		return false
+	end
+	if not ignore_mt then
+		local mt1 = getmetatable(o1)
+		if mt1 and mt1.__eq then
+			return o1 == o2
+		end
+	end
+	local keySet = { }
+	for key1, value1 in pairs(o1) do
+		local value2 = o2[key1]
+		if value2 == nil or _equals(value1, value2, ignore_mt) == false then
+			return false
+		end
+		keySet[key1] = true
+	end
+	for key2, _ in pairs(o2) do
+		if not keySet[key2] then
+			return false
+		end
+	end
+	return true
+end
 local assert_eq
 assert_eq = function(actual, expectation, label)
 	if label == nil then
 		label = ""
 	end
 	return _abstract_comparison_assertion(actual, (function(a, b)
-		return a == b
+		return _equals(a, b)
 	end), expectation, "", label)
 end
 _module_0["assert_eq"] = assert_eq
@@ -599,7 +647,7 @@ assert_ne = function(actual, expectation, label)
 		label = ""
 	end
 	return _abstract_comparison_assertion(actual, (function(a, b)
-		return a ~= b
+		return not _equals(a, b)
 	end), expectation, "anything but", label)
 end
 _module_0["assert_ne"] = assert_ne
@@ -878,12 +926,108 @@ do
 		return assert_ge(G.GAME.dollars, compare_dollars_to, 'dollars')
 	end
 end
+local _anon_func_1 = function(option_name, ui)
+	local _obj_0 = ui.config
+	if _obj_0 ~= nil then
+		return _obj_0[option_name]
+	end
+	return nil
+end
+local assert_valid_ui
+assert_valid_ui = function(ui, lenient, preceeding_path, path_depth)
+	if lenient == nil then
+		lenient = false
+	end
+	if preceeding_path == nil then
+		preceeding_path = "ui"
+	end
+	if path_depth == nil then
+		path_depth = 0
+	end
+	print(ui)
+	local element_names = { }
+	element_names[1] = "text (G.UIT.T)"
+	element_names[2] = "box (G.UIT.B)"
+	element_names[3] = "column (G.UIT.C)"
+	element_names[4] = "row (G.UIT.R)"
+	element_names[5] = "object (G.UIT.O)"
+	element_names[7] = "root (G.UIT.ROOT)"
+	element_names[8] = "slider (G.UIT.S)"
+	element_names[9] = "input text box (G.UIT.I)"
+	element_names[0] = "default padding (G.UIT.padding)"
+	local error_with_path
+	error_with_path = function(text)
+		return error("In " .. tostring(preceeding_path) .. ": " .. tostring(text), 2 + path_depth)
+	end
+	local require_config_option
+	require_config_option = function(option_name)
+		if _anon_func_1(option_name, ui) == nil then
+			return error_with_path("Required config option for " .. tostring(element_names[ui.n]) .. ": " .. tostring(option_name))
+		end
+	end
+	local assert_config_type
+	assert_config_type = function(path, value, type_name)
+		if type(value) ~= nil and type(value) ~= type_name then
+			return error_with_path("Wrong type for " .. tostring(path) .. ": Expected a " .. tostring(type_name) .. ", got " .. tostring(value) .. ", a " .. tostring(type(value)))
+		end
+	end
+	do
+		local _exp_0 = ui.n
+		if nil == _exp_0 then
+			error_with_path("No node type specified")
+		elseif G.UIT.T == _exp_0 then
+			require_config_option("colour")
+			require_config_option("text")
+			require_config_option("scale")
+		elseif G.UIT.B == _exp_0 then
+			require_config_option("w")
+			require_config_option("h")
+		elseif G.UIT.C == _exp_0 then
+		elseif G.UIT.R == _exp_0 then
+		elseif G.UIT.O == _exp_0 then
+		elseif G.UIT.ROOT == _exp_0 then
+		elseif G.UIT.S == _exp_0 then
+		elseif G.UIT.I == _exp_0 then
+		elseif G.UIT.padding == _exp_0 then
+		else
+			error_with_path("Unknown node type (" .. tostring(ui.n) .. ")")
+		end
+	end
+	if ui.nodes then
+		for node_index, node in ipairs(ui.nodes) do
+			assert_valid_ui(node, lenient, tostring(preceeding_path) .. ".nodes[" .. tostring(node_index) .. "]", path_depth + 1)
+			if not lenient and ui.n == G.UIT.C and node.n == G.UIT.B and #ui.nodes ~= 1 then
+				error_with_path("Balatro's UI gets buggy if you have text that isn't the only node in its column (and maybe rows too sometimes idk?)")
+			end
+		end
+	end
+	return ui
+end
+_module_0["assert_valid_ui"] = assert_valid_ui
+local config_next_token
+config_next_token = function(context)
+	local token = context.tokens[context.token_index]
+	context.token_index = context.token_index + 1
+	return token
+end
 local subcommands = {
 	failed = {
 		["function"] = function(context)
 			context.config.failed_only = true
 		end,
 		description = "Runs only tests that didn't succeed the last time they were ran (this includes new tests that didn't succeed last time because there wasn't a last time)"
+	},
+	path = {
+		["function"] = function(context)
+			context.config.path = config_next_token(context)
+			if context.config.path == nil then
+				error("You need to specify a path!! :o")
+			end
+			if not _starts_with(context.config.path, "all/") then
+				context.config.path = "all/" .. context.config.path
+			end
+		end,
+		description = "Runs only tests within the specified path. \"all/\" is automatically prepended if not added manually."
 	}
 }
 for subcommand_name, subcommand in pairs(subcommands) do
@@ -892,7 +1036,7 @@ for subcommand_name, subcommand in pairs(subcommands) do
 		"--" .. subcommand_name
 	}
 end
-local _anon_func_1 = function(input_string, string)
+local _anon_func_2 = function(input_string, string)
 	local _accum_0 = { }
 	local _len_0 = 1
 	for x in string.gmatch(input_string, "[^%s]+") do
@@ -904,12 +1048,12 @@ end
 local config_from_string
 config_from_string = function(input_string)
 	local context = {
-		tokens = _anon_func_1(input_string, string),
+		tokens = _anon_func_2(input_string, string),
 		token_index = 1,
 		config = { }
 	}
 	while context.token_index <= #context.tokens do
-		local token = context.tokens[context.token_index]
+		local token = config_next_token(context)
 		local found = false
 		for subcommand_name, subcommand in pairs(subcommands) do
 			local _list_0 = subcommand.aliases
@@ -933,7 +1077,6 @@ config_from_string = function(input_string)
 		if not found then
 			error("Unknown token: " .. tostring(token))
 		end
-		context.token_index = context.token_index + 1
 	end
 	return context.config
 end
@@ -968,7 +1111,7 @@ if dbp_success and dpAPI.isVersionCompatible(1) and debugplus then
 	end)(), "\n")
 	local success, result = pcall(debugplus.addCommand, {
 		name = "test",
-		shortDesc = "Runs all tests.",
+		shortDesc = "Runs all tests. uh, unless you make it do otherwise.",
 		desc = desc,
 		exec = function(args, raw_args, dp)
 			local config = config_from_string(raw_args)
