@@ -1,4 +1,8 @@
 A simple library for testing Steamodded Balatro mods, which I'm now realizing unambigiously should have been a mod itself and not a library. Uh, oops. :) 
+
+> [!IMPORTANT]  
+> You're going to need https://github.com/RNLFoof/balatro_ui_map in MOD_ROOT/libs/balatro_ui_map. This will be fixed when/if I get around to making this its own mod like it should be lol
+
 In particular, it works within the Balatro event system. Tests consist of multiple steps that only run once the game has resolved all events that resulted from the previous step. So, things like playing a hand and letting the hand resolve entirely before checking the score. Things like that.
 
 It's written in [YueScript](https://yuescript.org/), a [MoonScript](https://moonscript.org/) flavor, because I think Lua is a bit verbose and stinky. But it compiles to Lua, so you don't have to switch. The example below is also written in YueScript, I hope it's still understandable!
