@@ -2,6 +2,8 @@
 json = require "json"
 assert(json)
 
+ui_map = assert(SMODS.load_file("libs/balatro_ui_map/main.lua"))()
+
 logger = { -- Placeholder logger, for when DebugPlus isn't available
     log:   print
     debug: print
@@ -403,23 +405,24 @@ export waiting_steps = (how_many=1) ->
         output[] = -> nil
     output
 
-
-
-export create_state_steps = (kwargs={}) ->
+export new_run = (kwargs={}) ->
     kwargs.stake ??= 1
     kwargs.seed  ??= "TUTORIAL"
-    
+    G.FUNCS.start_run(nil, {
+        stake: kwargs.stake,
+        seed:  kwargs.seed,
+    })
 
-    {
-        -> G.FUNCS.start_run(nil, {
-            stake: kwargs.stake,
-            seed:  kwargs.seed,
-        }),
-        -- -> G.hand.config.card_limit = 1,
+export new_round = () ->
+    ui_map.screens.select_blind.small.buttons.get_select()::click()
+    
+-- macro ok = () -> '_module_0["new_round"] = _new_round'
+-- $ok
+
+export create_state_steps = (kwargs={}) ->
+    return {
+        -> new_run(kwargs),
         -> new_round(),
-        -- ->
-            -- G.deck.config.card_limit = 0
-            -- G.hand.cards = {}
     }
 
 -- export new_shop = () ->

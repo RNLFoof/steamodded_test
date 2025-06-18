@@ -1,6 +1,7 @@
 local _module_0 = { }
 local json = require("json")
 assert(json)
+local ui_map = assert(SMODS.load_file("libs/balatro_ui_map/main.lua"))()
 local logger = {
 	log = print,
 	debug = print,
@@ -810,8 +811,8 @@ waiting_steps = function(how_many)
 	return output
 end
 _module_0["waiting_steps"] = waiting_steps
-local create_state_steps
-create_state_steps = function(kwargs)
+local new_run
+new_run = function(kwargs)
 	if kwargs == nil then
 		kwargs = { }
 	end
@@ -821,12 +822,25 @@ create_state_steps = function(kwargs)
 	if kwargs.seed == nil then
 		kwargs.seed = "TUTORIAL"
 	end
+	return G.FUNCS.start_run(nil, {
+		stake = kwargs.stake,
+		seed = kwargs.seed
+	})
+end
+_module_0["new_run"] = new_run
+local new_round
+new_round = function()
+	return ui_map.screens.select_blind.small.buttons.get_select():click()
+end
+_module_0["new_round"] = new_round
+local create_state_steps
+create_state_steps = function(kwargs)
+	if kwargs == nil then
+		kwargs = { }
+	end
 	return {
 		function()
-			return G.FUNCS.start_run(nil, {
-				stake = kwargs.stake,
-				seed = kwargs.seed
-			})
+			return new_run(kwargs)
 		end,
 		function()
 			return new_round()
