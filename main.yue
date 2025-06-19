@@ -72,6 +72,13 @@ _get_event_count = () ->
 _run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
     if #funcs == 0
         return
+
+    -- So sometimes you end up with two of these at once
+    -- How? zero clue
+    -- This is not a good way to solve this but tbh I'm SO done
+    if #[event for event in *G.E_MANAGER.queues.base when event.steamodded_test] > 1
+        return
+
     first_func = funcs[1]
     remaining_funcs = [func for func in *funcs[2,]]
     
@@ -85,7 +92,7 @@ _run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
         first_func = funcs[1]
         remaining_funcs = [func for func in *funcs[2,]]
 
-    G.E_MANAGER\add_event(Event({
+    event = Event({
         no_delete: true
         func: ->
             -- If we're not ready yet, delay
@@ -106,8 +113,10 @@ _run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
                     result = "FUCK!!!"
                 -- logger.debug("\tResult was #{result}")
                 _run_ordered_events(remaining_funcs, result)
-            true  -- So that the event succeeds
-    }))
+            return true  -- So that the event succeeds
+    })
+    event.steamodded_test = true
+    G.E_MANAGER::add_event(event)
 
 _n_tabs = (indentation) ->
     string.rep("\t", indentation)
@@ -237,6 +246,7 @@ export class TestBundle extends TestBase
         tally = {passed: 0, failed: 0, skipped: 0}
         output[] = ->
             statuses.LOG::write(_n_tabs(context.indentation) .. "Running test bundle \"#{@.path_string(context.path)}\" (contains #{#@tests} subtest(s))...")
+            nil
 
         context.test_count = #@tests
         for test_index, test in ipairs(@tests)
@@ -249,9 +259,12 @@ export class TestBundle extends TestBase
                 output[] = (result) -> 
                     tally.skipped += 1
                     statuses.SKIPPED::write(_n_tabs(subcontext.indentation) .. "Skipped \"#{@.path_string(subcontext.path)}\"! Reason: #{skippy}")
+                    nil
             else
                 events = test\gather_events(config, context)
-                output[] = -> G.E_MANAGER::clear_queue()
+                output[] = -> 
+                    G.E_MANAGER::clear_queue()
+                    nil
                 for _, event in ipairs(events)
                     output[] = event
                 output[] = (result) -> 
@@ -273,7 +286,7 @@ export class TestBundle extends TestBase
             else
                 via(_n_tabs(context.indentation) .. "...done with \"#{@.path_string(context.path)}\". Ran #{#@tests} test(s). #{tally.passed} passed, #{tally.failed} failed.")
 
-            if true or context.indentation == 0 -- This means it's over
+            if context.indentation == 0 -- This means it's over
                 love.filesystem.write(PREVIOUS_RESULTS_PATH, json.encode(context.previous_results))
 
             return all_passed
@@ -286,6 +299,7 @@ export run_all_tests = (config={}) ->
 
     statuses.LOG::write("Running only tests that didn't succeed on their last run...") if config.failed_only
 
+    print("hhhhhhhh")
     G.steamodded_tests::run(config)
         
 _init = () ->

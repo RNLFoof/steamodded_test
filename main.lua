@@ -78,6 +78,19 @@ local _get_event_count
 _get_event_count = function()
 	return #_anon_func_0(G, _should_event_count)
 end
+local _anon_func_1 = function(G)
+	local _accum_0 = { }
+	local _len_0 = 1
+	local _list_0 = G.E_MANAGER.queues.base
+	for _index_0 = 1, #_list_0 do
+		local event = _list_0[_index_0]
+		if event.steamodded_test then
+			_accum_0[_len_0] = event
+			_len_0 = _len_0 + 1
+		end
+	end
+	return _accum_0
+end
 local _run_ordered_events
 _run_ordered_events = function(funcs, previous_result, retry_count)
 	if previous_result == nil then
@@ -87,6 +100,9 @@ _run_ordered_events = function(funcs, previous_result, retry_count)
 		retry_count = 0
 	end
 	if #funcs == 0 then
+		return
+	end
+	if #_anon_func_1(G) > 1 then
 		return
 	end
 	local first_func = funcs[1]
@@ -116,7 +132,7 @@ _run_ordered_events = function(funcs, previous_result, retry_count)
 		end
 		remaining_funcs = _accum_0
 	end
-	return G.E_MANAGER:add_event(Event({
+	local event = Event({
 		no_delete = true,
 		func = function()
 			local retry_danger_threshold = 100
@@ -141,7 +157,9 @@ _run_ordered_events = function(funcs, previous_result, retry_count)
 			end
 			return true
 		end
-	}))
+	})
+	event.steamodded_test = true
+	return G.E_MANAGER:add_event(event)
 end
 local _n_tabs
 _n_tabs = function(indentation)
@@ -225,7 +243,7 @@ do
 	end
 	statuses = _tbl_0
 end
-local _anon_func_1 = function(pairs, path, self)
+local _anon_func_2 = function(pairs, path, self)
 	local _tab_0 = { }
 	local _idx_0 = 1
 	for _key_0, _value_0 in pairs(path) do
@@ -247,7 +265,7 @@ do
 			return table.concat(path, "/")
 		end,
 		path_string_tag_yourself = function(self, path)
-			return self.path_string(_anon_func_1(pairs, path, self))
+			return self.path_string(_anon_func_2(pairs, path, self))
 		end,
 		gather_events_config_with_defaults = function(config)
 			local defaults = {
@@ -478,7 +496,8 @@ do
 				skipped = 0
 			}
 			output[#output + 1] = function()
-				return statuses.LOG:write(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context.path)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
+				statuses.LOG:write(_n_tabs(context.indentation) .. "Running test bundle \"" .. tostring(self.path_string(context.path)) .. "\" (contains " .. tostring(#self.tests) .. " subtest(s))...")
+				return nil
 			end
 			context.test_count = #self.tests
 			for test_index, test in ipairs(self.tests) do
@@ -489,12 +508,14 @@ do
 				if skippy then
 					output[#output + 1] = function(result)
 						tally.skipped = tally.skipped + 1
-						return statuses.SKIPPED:write(_n_tabs(subcontext.indentation) .. "Skipped \"" .. tostring(self.path_string(subcontext.path)) .. "\"! Reason: " .. tostring(skippy))
+						statuses.SKIPPED:write(_n_tabs(subcontext.indentation) .. "Skipped \"" .. tostring(self.path_string(subcontext.path)) .. "\"! Reason: " .. tostring(skippy))
+						return nil
 					end
 				else
 					events = test:gather_events(config, context)
 					output[#output + 1] = function()
-						return G.E_MANAGER:clear_queue()
+						G.E_MANAGER:clear_queue()
+						return nil
 					end
 					for _, event in ipairs(events) do
 						output[#output + 1] = event
@@ -533,7 +554,7 @@ do
 				else
 					via(_n_tabs(context.indentation) .. "...done with \"" .. tostring(self.path_string(context.path)) .. "\". Ran " .. tostring(#self.tests) .. " test(s). " .. tostring(tally.passed) .. " passed, " .. tostring(tally.failed) .. " failed.")
 				end
-				if true or context.indentation == 0 then
+				if context.indentation == 0 then
 					love.filesystem.write(PREVIOUS_RESULTS_PATH, json.encode(context.previous_results))
 				end
 				return all_passed
@@ -592,6 +613,7 @@ run_all_tests = function(config)
 	if config.failed_only then
 		statuses.LOG:write("Running only tests that didn't succeed on their last run...")
 	end
+	print("hhhhhhhh")
 	return G.steamodded_tests:run(config)
 end
 _module_0["run_all_tests"] = run_all_tests
@@ -989,7 +1011,7 @@ do
 		return assert_ge(G.GAME.dollars, compare_dollars_to, 'dollars')
 	end
 end
-local _anon_func_2 = function(option_name, ui)
+local _anon_func_3 = function(option_name, ui)
 	local _obj_0 = ui.config
 	if _obj_0 ~= nil then
 		return _obj_0[option_name]
@@ -1024,7 +1046,7 @@ assert_valid_ui = function(ui, lenient, preceeding_path, path_depth)
 	end
 	local require_config_option
 	require_config_option = function(option_name)
-		if _anon_func_2(option_name, ui) == nil then
+		if _anon_func_3(option_name, ui) == nil then
 			return error_with_path("Required config option for " .. tostring(element_names[ui.n]) .. ": " .. tostring(option_name))
 		end
 	end
@@ -1099,7 +1121,7 @@ for subcommand_name, subcommand in pairs(subcommands) do
 		"--" .. subcommand_name
 	}
 end
-local _anon_func_3 = function(input_string, string)
+local _anon_func_4 = function(input_string, string)
 	local _accum_0 = { }
 	local _len_0 = 1
 	for x in string.gmatch(input_string, "[^%s]+") do
@@ -1111,7 +1133,7 @@ end
 local config_from_string
 config_from_string = function(input_string)
 	local context = {
-		tokens = _anon_func_3(input_string, string),
+		tokens = _anon_func_4(input_string, string),
 		token_index = 1,
 		config = { }
 	}
