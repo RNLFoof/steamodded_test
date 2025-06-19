@@ -473,6 +473,12 @@ export play_hand = (playing_cards, kwargs={})->
     
     G.FUNCS.play_cards_from_highlighted()
 
+export discard_something_steps = () -> 
+    return {
+        -> ui_map.card_areas.get_hand().cards[1]::click()
+        -> ui_map.screens.blind.buttons.get_discard()::click()
+    }
+
 -- So this seems stupid, but...
 -- It results in many functions. At time of writing, it's these, but this is open to change:
 -- assert_hand_scored = (compare_chips_to) -> ...

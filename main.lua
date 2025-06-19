@@ -915,6 +915,18 @@ play_hand = function(playing_cards, kwargs)
 	return G.FUNCS.play_cards_from_highlighted()
 end
 _module_0["play_hand"] = play_hand
+local discard_something_steps
+discard_something_steps = function()
+	return {
+		function()
+			return ui_map.card_areas.get_hand().cards[1]:click()
+		end,
+		function()
+			return ui_map.screens.blind.buttons.get_discard():click()
+		end
+	}
+end
+_module_0["discard_something_steps"] = discard_something_steps
 do
 	_module_0["assert_hand_scored"] = function(compare_chips_to)
 		return assert_eq(G.GAME.chips, compare_chips_to, 'chips')
