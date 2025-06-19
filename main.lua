@@ -54,6 +54,30 @@ _put_in_array_if_alone = function(this_guy)
 	end
 	return output
 end
+local _should_event_count
+_should_event_count = function(event)
+	if event.blocking == false and event.blockable == false then
+		return false
+	end
+	return true
+end
+local _anon_func_0 = function(G, _should_event_count)
+	local _accum_0 = { }
+	local _len_0 = 1
+	local _list_0 = G.E_MANAGER.queues.base
+	for _index_0 = 1, #_list_0 do
+		local event = _list_0[_index_0]
+		if _should_event_count(event) then
+			_accum_0[_len_0] = event
+			_len_0 = _len_0 + 1
+		end
+	end
+	return _accum_0
+end
+local _get_event_count
+_get_event_count = function()
+	return #_anon_func_0(G, _should_event_count)
+end
 local _run_ordered_events
 _run_ordered_events = function(funcs, previous_result, retry_count)
 	if previous_result == nil then
@@ -96,7 +120,7 @@ _run_ordered_events = function(funcs, previous_result, retry_count)
 		no_delete = true,
 		func = function()
 			local retry_danger_threshold = 100
-			local event_count = #G.E_MANAGER.queues.base
+			local event_count = _get_event_count()
 			local event_tolerance = (retry_count - 1) / retry_danger_threshold + 2
 			if event_count > event_tolerance then
 				if retry_count > 0 and retry_count % retry_danger_threshold == 0 then
@@ -201,7 +225,7 @@ do
 	end
 	statuses = _tbl_0
 end
-local _anon_func_0 = function(pairs, path, self)
+local _anon_func_1 = function(pairs, path, self)
 	local _tab_0 = { }
 	local _idx_0 = 1
 	for _key_0, _value_0 in pairs(path) do
@@ -223,7 +247,7 @@ do
 			return table.concat(path, "/")
 		end,
 		path_string_tag_yourself = function(self, path)
-			return self.path_string(_anon_func_0(pairs, path, self))
+			return self.path_string(_anon_func_1(pairs, path, self))
 		end,
 		gather_events_config_with_defaults = function(config)
 			local defaults = {
@@ -965,7 +989,7 @@ do
 		return assert_ge(G.GAME.dollars, compare_dollars_to, 'dollars')
 	end
 end
-local _anon_func_1 = function(option_name, ui)
+local _anon_func_2 = function(option_name, ui)
 	local _obj_0 = ui.config
 	if _obj_0 ~= nil then
 		return _obj_0[option_name]
@@ -1000,7 +1024,7 @@ assert_valid_ui = function(ui, lenient, preceeding_path, path_depth)
 	end
 	local require_config_option
 	require_config_option = function(option_name)
-		if _anon_func_1(option_name, ui) == nil then
+		if _anon_func_2(option_name, ui) == nil then
 			return error_with_path("Required config option for " .. tostring(element_names[ui.n]) .. ": " .. tostring(option_name))
 		end
 	end
@@ -1075,7 +1099,7 @@ for subcommand_name, subcommand in pairs(subcommands) do
 		"--" .. subcommand_name
 	}
 end
-local _anon_func_2 = function(input_string, string)
+local _anon_func_3 = function(input_string, string)
 	local _accum_0 = { }
 	local _len_0 = 1
 	for x in string.gmatch(input_string, "[^%s]+") do
@@ -1087,7 +1111,7 @@ end
 local config_from_string
 config_from_string = function(input_string)
 	local context = {
-		tokens = _anon_func_2(input_string, string),
+		tokens = _anon_func_3(input_string, string),
 		token_index = 1,
 		config = { }
 	}

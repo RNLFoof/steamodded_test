@@ -49,6 +49,25 @@ _put_in_array_if_alone = (this_guy) ->
         output = this_guy
     output
 
+_should_event_count = (event) ->
+    -- Stuff like juice_card_until, which just kind of goes on forever and doesn't matter
+    if event.blocking == false and event.blockable == false
+        return false
+
+    return true
+
+_get_event_count = () ->
+    return #[event for event in *G.E_MANAGER.queues.base when _should_event_count(event)]
+--     total = 0
+--     for event in *G.E_MANAGER.queues.base
+--         count_it = true
+--         for ignore_if in *ignore_ifs
+--             if ignore_if(event)
+--                 count_it = false
+--                 break
+--         if count_it
+--             total += 1
+--     return total
 
 _run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
     if #funcs == 0
@@ -71,7 +90,7 @@ _run_ordered_events = (funcs, previous_result=nil, retry_count=0) ->
         func: ->
             -- If we're not ready yet, delay
             retry_danger_threshold = 100
-            event_count = #G.E_MANAGER.queues.base
+            event_count = _get_event_count()
             event_tolerance = (retry_count-1) / retry_danger_threshold + 2 -- This one will always be in there, it's not removed until a success. and there seems to be some other permanent one?
             if event_count > event_tolerance 
                 if retry_count > 0 and retry_count % retry_danger_threshold == 0
