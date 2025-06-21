@@ -1,40 +1,34 @@
 testing = assert(SMODS.load_file("libs\\steamodded_test\\main.lua"))()
 
-G.steamodded_tests.tests[] = testing.TestBundle("test tests", {
+TestBundle = testing.TestBundle
+Test = testing.Test
 
-        testing.TestBundle("assertions", {
-            testing.Test("assert_eq", -> testing.assert_eq(5, 5)),
-            testing.Test("assert_ne", -> testing.assert_ne(5, 4)),
-            testing.Test("assert_lt", -> testing.assert_lt(4, 5)),
-            testing.Test("assert_gt", -> testing.assert_gt(5, 4)),
-            testing.Test("assert_le", -> testing.assert_le(4, 5)),
-            testing.Test("assert_ge", -> testing.assert_ge(5, 4)),
-            testing.Test("assert_le", -> testing.assert_le(5, 5)),
-            testing.Test("assert_ge", -> testing.assert_ge(5, 5)),
-        }),
+G.steamodded_tests.tests[] = TestBundle "test_tests"
+        * TestBundle "assertions"
+            * Test("assert_eq", -> testing.assert_eq(5, 5))
+            * Test("assert_ne", -> testing.assert_ne(5, 4))
+            * Test("assert_lt", -> testing.assert_lt(4, 5))
+            * Test("assert_gt", -> testing.assert_gt(5, 4))
+            * Test("assert_le", -> testing.assert_le(4, 5))
+            * Test("assert_ge", -> testing.assert_ge(5, 4))
+            * Test("assert_le", -> testing.assert_le(5, 5))
+            * Test("assert_ge", -> testing.assert_ge(5, 5))
 
-        testing.TestBundle("add_centers", {
+        * TestBundle "add_centers"
             
-            testing.Test("1", {
-                ...testing.create_state_steps()
-                -> testing.add_centers({"j_joker"})
-                -> testing.assert_eq(G.jokers.cards[1].config.center.key, "j_joker")
-            }),
+            * Test "1", 
+                * testing.create_state_steps()
+                * -> testing.add_centers({"j_joker"})
+                * -> testing.assert_eq(G.jokers.cards[1].config.center.key, "j_joker")
             
-            testing.Test("2", {
-                ...testing.create_state_steps()
-                -> testing.add_centers({"j_joker", "j_joker"})
-                -> testing.assert_eq(G.jokers.cards[1].config.center.key, "j_joker")
-                -> testing.assert_eq(G.jokers.cards[2].config.center.key, "j_joker")
-            }),
+            * Test "2"
+                * testing.create_state_steps()
+                * -> testing.add_centers({"j_joker", "j_joker"})
+                * -> testing.assert_eq(G.jokers.cards[1].config.center.key, "j_joker")
+                * -> testing.assert_eq(G.jokers.cards[2].config.center.key, "j_joker")
             
-            testing.Test("6, sequential", {
-                ...testing.create_state_steps()
-                -> testing.add_centers(["j_joker" for _=1,6])
-                -> testing.assert_eq(#[joker for joker in *G.jokers.cards when joker.config.center.key == "j_joker"], 6)
-                -> testing.assert_eq(#SMODS.find_card("j_joker"), 6)
-            }),
-
-        })
-    }
-)
+            * Test "6_sequential"
+                * testing.create_state_steps()
+                * -> testing.add_centers(["j_joker" for _=1,6])
+                * -> testing.assert_eq(#[joker for joker in *G.jokers.cards when joker.config.center.key == "j_joker"], 6)
+                * -> testing.assert_eq(#SMODS.find_card("j_joker"), 6)
