@@ -171,7 +171,7 @@ _starts_with = function(string, start)
 end
 local PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
 local context_defaults = {
-	indentation = 0,
+	indentation = -1,
 	path = { },
 	previous_results = { },
 	test_index = 1,

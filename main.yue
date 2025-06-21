@@ -128,7 +128,7 @@ _starts_with = (string, start) -> string::sub(1, #start) == start
 PREVIOUS_RESULTS_PATH = "steamodded_test_previous_results.json"
 
 context_defaults = {
-    indentation: 0
+    indentation: -1
     path: {}
     previous_results: {}
     test_index: 1
