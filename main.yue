@@ -299,7 +299,6 @@ export run_all_tests = (config={}) ->
 
     statuses.LOG::write("Running only tests that didn't succeed on their last run...") if config.failed_only
 
-    print("hhhhhhhh")
     G.steamodded_tests::run(config)
         
 _init = () ->

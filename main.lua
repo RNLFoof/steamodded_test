@@ -613,7 +613,6 @@ run_all_tests = function(config)
 	if config.failed_only then
 		statuses.LOG:write("Running only tests that didn't succeed on their last run...")
 	end
-	print("hhhhhhhh")
 	return G.steamodded_tests:run(config)
 end
 _module_0["run_all_tests"] = run_all_tests
