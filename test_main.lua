@@ -90,5 +90,45 @@ _obj_0[#_obj_0 + 1] = TestBundle("test_tests", {
 				return testing.assert_eq(#SMODS.find_card("j_joker"), 6)
 			end
 		})
+	}),
+	TestBundle("new_run", {
+		Test("default", {
+			function()
+				return testing.new_run()
+			end,
+			function()
+				return testing.assert_eq(G.GAME.selected_back.name, "Red Deck")
+			end
+		}),
+		Test("by_name", {
+			function()
+				return testing.new_run({
+					back = "Blue Deck"
+				})
+			end,
+			function()
+				return testing.assert_eq(G.GAME.selected_back.name, "Blue Deck")
+			end
+		}),
+		Test("by_id", {
+			function()
+				return testing.new_run({
+					back = "b_green"
+				})
+			end,
+			function()
+				return testing.assert_eq(G.GAME.selected_back.name, "Green Deck")
+			end
+		}),
+		Test("by_object", {
+			function()
+				return testing.new_run({
+					back = G.P_CENTERS.b_yellow
+				})
+			end,
+			function()
+				return testing.assert_eq(G.GAME.selected_back.name, "Yellow Deck")
+			end
+		})
 	})
 })

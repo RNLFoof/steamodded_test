@@ -32,3 +32,18 @@ G.steamodded_tests.tests[] = TestBundle "test_tests"
                 * -> testing.add_centers(["j_joker" for _=1,6])
                 * -> testing.assert_eq(#[joker for joker in *G.jokers.cards when joker.config.center.key == "j_joker"], 6)
                 * -> testing.assert_eq(#SMODS.find_card("j_joker"), 6)
+        
+        * TestBundle "new_run"
+            -- Unfortunately, G.GAME.selected_back is both how we set the back, and the best way to check it. so uh. if that was the wrong variable they'd all pass anyway
+            * Test "default"
+                * -> testing.new_run()
+                * -> testing.assert_eq(G.GAME.selected_back.name, "Red Deck")
+            * Test "by_name"
+                * -> testing.new_run({back: "Blue Deck"})
+                * -> testing.assert_eq(G.GAME.selected_back.name, "Blue Deck")
+            * Test "by_id"
+                * -> testing.new_run({back: "b_green"})
+                * -> testing.assert_eq(G.GAME.selected_back.name, "Green Deck")
+            * Test "by_object"
+                * -> testing.new_run({back: G.P_CENTERS.b_yellow})
+                * -> testing.assert_eq(G.GAME.selected_back.name, "Yellow Deck")

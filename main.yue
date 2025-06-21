@@ -438,8 +438,32 @@ export waiting_steps = (how_many=1) ->
     output
 
 export new_run = (kwargs={}) ->
-    kwargs.stake ??= 1
-    kwargs.seed  ??= "TUTORIAL"
+    kwargs.stake                ??= 1
+    kwargs.seed                 ??= "TUTORIAL"
+    kwargs.back                 ??= G.P_CENTERS["b_red"]
+    kwargs.silence_back_warning ??= false
+
+    -- TODO this should probably be replaced with some kind of "get center by value" function that can be used elsewhere 
+    if type(kwargs.back) == "string"
+        if G.P_CENTERS[kwargs.back] != nil
+            kwargs.back = G.P_CENTERS[kwargs.back]
+        else
+            found_it = false
+            print(G.P_CENTERS)
+            for key, center in pairs(G.P_CENTERS)
+                print(center.name)
+                if center.name != kwargs.back
+                    continue
+                found_it = true
+                unless kwargs.silence_back_warning
+                    logger.warn("Found Back ID \"#{key}\" from the name \"#{center.name}\", you might want to use the ID instead to precent conflicts. Turn this warning off with kwargs.silence_back_warning")
+                kwargs.back = center
+            if not found_it
+                error("Provided string \"#{kwargs.back}\" didn't seem to match any back names or IDs.")
+
+    if kwargs.back != nil
+        G.GAME.selected_back = kwargs.back
+
     G.FUNCS.start_run(nil, {
         stake: kwargs.stake,
         seed:  kwargs.seed,

@@ -867,6 +867,45 @@ new_run = function(kwargs)
 	if kwargs.seed == nil then
 		kwargs.seed = "TUTORIAL"
 	end
+	if kwargs.back == nil then
+		kwargs.back = G.P_CENTERS["b_red"]
+	end
+	if kwargs.silence_back_warning == nil then
+		kwargs.silence_back_warning = false
+	end
+	if type(kwargs.back) == "string" then
+		if G.P_CENTERS[kwargs.back] ~= nil then
+			kwargs.back = G.P_CENTERS[kwargs.back]
+		else
+			local found_it = false
+			print(G.P_CENTERS)
+			for key, center in pairs(G.P_CENTERS) do
+				local _continue_0 = false
+				repeat
+					print(center.name)
+					if center.name ~= kwargs.back then
+						_continue_0 = true
+						break
+					end
+					found_it = true
+					if not kwargs.silence_back_warning then
+						logger.warn("Found Back ID \"" .. tostring(key) .. "\" from the name \"" .. tostring(center.name) .. "\", you might want to use the ID instead to precent conflicts. Turn this warning off with kwargs.silence_back_warning")
+					end
+					kwargs.back = center
+					_continue_0 = true
+				until true
+				if not _continue_0 then
+					break
+				end
+			end
+			if not found_it then
+				error("Provided string \"" .. tostring(kwargs.back) .. "\" didn't seem to match any back names or IDs.")
+			end
+		end
+	end
+	if kwargs.back ~= nil then
+		G.GAME.selected_back = kwargs.back
+	end
 	return G.FUNCS.start_run(nil, {
 		stake = kwargs.stake,
 		seed = kwargs.seed
