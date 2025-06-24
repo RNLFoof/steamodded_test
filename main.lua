@@ -1,6 +1,9 @@
 local _module_0 = { }
 local json = require("json")
 assert(json)
+local typecheck = assert(SMODS.load_file("libs/steamodded_test/libs/share/lua/5.1/typecheck/init.lua")())
+local argcheck = typecheck.argcheck
+local argscheck = typecheck.argscheck
 local ui_map = assert(SMODS.load_file("libs/balatro_ui_map/main.lua"))()
 local logger = {
 	log = print,
@@ -737,8 +740,16 @@ assert_ge = function(actual, expectation, label)
 	end), expectation, "a value greater than or equal to", label)
 end
 _module_0["assert_ge"] = assert_ge
-local playing_card_from_string
-playing_card_from_string = function(input)
+local assert_type
+assert_type = function(object, desired_type)
+	argcheck('steammodded_test.assert_type', 2, "any", object)
+	argcheck('steammodded_test.assert_type', 2, "string", desired_type)
+	local desired_type_metatable = _G[desired_type]
+	argcheck('steammodded_test.assert_type', 2, desired_type, object)
+	return true
+end
+_module_0["assert_type"] = assert_type
+local playing_card_from_string = (argscheck('steamodded_test.main.playing_card_from_string(string) => Card')) .. function(input)
 	local suit = "S"
 	local rank = "T"
 	input = string.lower(input)
@@ -835,7 +846,13 @@ playing_card_from_string = function(input)
 	if a ~= nil then
 		rank = string.sub(input, a, b)
 	end
-	local card = Card(G.play.T.x + G.play.T.w / 2, G.play.T.y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS.c_base, {
+	local x = nil
+	local y = nil
+	if G.play then
+		x = G.play.T.x + G.play.T.w / 2
+		y = G.play.T.y
+	end
+	local card = Card(x, y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS.c_base, {
 		playing_card = G.playing_card
 	})
 	card:set_base(G.P_CARDS[tostring(suit) .. "_" .. tostring(rank)])

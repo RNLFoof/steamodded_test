@@ -26,6 +26,25 @@ end
 local _obj_0 = G.steamodded_tests.tests
 _obj_0[#_obj_0 + 1] = TestBundle("test_tests", {
 	TestBundle("assertions", {
+		TestBundle("assert_type", {
+			Test("number", function()
+				return testing.assert_type(5, "number")
+			end),
+			Test("metatable", function()
+				return testing.assert_type(testing.playing_card_from_string(""), "Card")
+			end),
+			Test("fancy", {
+				function()
+					return testing.assert_type(5, "number|string")
+				end,
+				function()
+					return testing.assert_type("hey", "number|string")
+				end
+			}),
+			Test("balatro_subtype", function()
+				return testing.assert_type(testing.playing_card_from_string(""), "Node")
+			end)
+		}),
 		Test("assert_eq", function()
 			return testing.assert_eq(5, 5)
 		end),

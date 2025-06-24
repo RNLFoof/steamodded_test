@@ -5,6 +5,13 @@ Test = testing.Test
 
 G.steamodded_tests.tests[] = TestBundle "test_tests"
         * TestBundle "assertions"
+            * TestBundle "assert_type"
+                * Test("number", -> testing.assert_type(5, "number"))
+                * Test("metatable", -> testing.assert_type(testing.playing_card_from_string(""), "Card"))
+                * Test "fancy"
+                    * -> testing.assert_type(5, "number|string")
+                    * -> testing.assert_type("hey", "number|string")
+                * Test("balatro_subtype", -> testing.assert_type(testing.playing_card_from_string(""), "Node"))
             * Test("assert_eq", -> testing.assert_eq(5, 5))
             * Test("assert_ne", -> testing.assert_ne(5, 4))
             * Test("assert_lt", -> testing.assert_lt(4, 5))

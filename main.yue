@@ -1,7 +1,9 @@
 
 json = require "json"
 assert(json)
-
+typecheck = assert(SMODS.load_file("libs/steamodded_test/libs/share/lua/5.1/typecheck/init.lua")())
+argcheck = typecheck.argcheck
+argscheck = typecheck.argscheck
 ui_map = assert(SMODS.load_file("libs/balatro_ui_map/main.lua"))()
 
 logger = { -- Placeholder logger, for when DebugPlus isn't available
@@ -354,9 +356,17 @@ export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_a
 export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b           ), expectation, "a value less than or equal to",    label)
 export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b           ), expectation, "a value greater than or equal to", label)
 
---- Helpful lil guys :)
+-- See https://gvvaughan.github.io/typecheck/
+export assert_type = (object, desired_type) ->
+    argcheck('steammodded_test.assert_type', 2, "any", object)
+    argcheck('steammodded_test.assert_type', 2, "string", desired_type)
+    desired_type_metatable = _G[desired_type]
+    argcheck('steammodded_test.assert_type', 2, desired_type, object)
+    return true
 
-export playing_card_from_string = (input) ->
+-- Helpful lil guys :)
+
+export playing_card_from_string = (argscheck 'steamodded_test.main.playing_card_from_string(string) => Card') .. (input) ->
     -- SMODS.create_card seems to be for everyihing but playing cards? Standard and Playing are both not the right set
     suit = "S"
     rank = "T"
@@ -415,8 +425,13 @@ export playing_card_from_string = (input) ->
     if a != nil
         rank = string.sub(input, a, b)
 
-    card = Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS.c_base, {playing_card: G.playing_card})
-    card\set_base(G.P_CARDS["#{suit}_#{rank}"])
+    x = nil
+    y = nil
+    if G.play
+        x = G.play.T.x + G.play.T.w/2
+        y = G.play.T.y
+    card = Card(x, y, G.CARD_W, G.CARD_H, nil, G.P_CENTERS.c_base, {playing_card: G.playing_card})
+    card::set_base(G.P_CARDS["#{suit}_#{rank}"])
     card
 
     -- Card(G.play.T.x + G.play.T.w/2, G.play.T.y, G.CARD_W, G.CARD_H, front, G.P_CENTERS.m_stone, {playing_card = G.playing_card})
