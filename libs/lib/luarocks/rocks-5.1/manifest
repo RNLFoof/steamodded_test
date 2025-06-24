@@ -1,0 +1,100 @@
+commands = {}
+dependencies = {
+   ["std._debug"] = {
+      ["1.0.1-1"] = {
+         {
+            constraints = {
+               {
+                  op = ">=",
+                  version = {
+                     5, 1, string = "5.1"
+                  }
+               },
+               {
+                  op = "<",
+                  version = {
+                     5, 5, string = "5.5"
+                  }
+               }
+            },
+            name = "lua"
+         }
+      }
+   },
+   typecheck = {
+      ["3.0-1"] = {
+         {
+            constraints = {
+               {
+                  op = ">=",
+                  version = {
+                     5, 1, string = "5.1"
+                  }
+               },
+               {
+                  op = "<",
+                  version = {
+                     5, 5, string = "5.5"
+                  }
+               }
+            },
+            name = "lua"
+         },
+         {
+            constraints = {
+               {
+                  op = ">=",
+                  version = {
+                     1, 0, 1, string = "1.0.1"
+                  }
+               }
+            },
+            name = "std._debug"
+         }
+      }
+   }
+}
+modules = {
+   ["std._debug.init"] = {
+      "std._debug/1.0.1-1"
+   },
+   ["std._debug.version"] = {
+      "std._debug/1.0.1-1"
+   },
+   ["typecheck.init"] = {
+      "typecheck/3.0-1"
+   },
+   ["typecheck.version"] = {
+      "typecheck/3.0-1"
+   }
+}
+repository = {
+   ["std._debug"] = {
+      ["1.0.1-1"] = {
+         {
+            arch = "installed",
+            commands = {},
+            dependencies = {},
+            modules = {
+               ["std._debug.init"] = "std/_debug/init.lua",
+               ["std._debug.version"] = "std/_debug/version.lua"
+            }
+         }
+      }
+   },
+   typecheck = {
+      ["3.0-1"] = {
+         {
+            arch = "installed",
+            commands = {},
+            dependencies = {
+               ["std._debug"] = "1.0.1-1"
+            },
+            modules = {
+               ["typecheck.init"] = "typecheck/init.lua",
+               ["typecheck.version"] = "typecheck/version.lua"
+            }
+         }
+      }
+   }
+}

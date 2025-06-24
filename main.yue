@@ -354,8 +354,6 @@ export assert_gt     = (actual, expectation, label="") -> _abstract_comparison_a
 export assert_le     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a <= b           ), expectation, "a value less than or equal to",    label)
 export assert_ge     = (actual, expectation, label="") -> _abstract_comparison_assertion(actual, ((a, b) -> a >= b           ), expectation, "a value greater than or equal to", label)
 
-
-
 --- Helpful lil guys :)
 
 export playing_card_from_string = (input) ->
