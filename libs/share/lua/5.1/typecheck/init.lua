@@ -932,6 +932,13 @@ local function checktype(expected, actual)
       end
    end
 
+   -- Custom
+   local expected_balatro_type = balatro_types[expected]
+   if expected_balatro_type and type(actual) == "table" and type(actual.is) == "function" and actual:is(expected_balatro_type) then
+      return true
+   end
+
+   -- Original
    return false
 end
 
