@@ -617,8 +617,30 @@ local function check(expected, argu, i, predicate)
    end
 end
 
+-- Custom
+local balatro_types = {}
+for key, value in pairs(_G) do
+   if (key == "V") or (key == "G") or (not key:match("^%u")) or (type(value) ~= "table") then
+      goto continue
+   end
+   if value.is then
+      balatro_types[key] = value
+   end
+   ::continue::
+end
 
+-- Original
 local function _type(x)
+   -- Custom
+   if (x.is) then
+      for key, value in pairs(balatro_types) do
+         if getmetatable(x) == value then
+            return key
+         end
+      end
+   end
+
+   -- Original
    return (getmetatable(x) or {})._type or io_type(x) or math_type(x) or type(x)
 end
 
