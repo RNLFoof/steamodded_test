@@ -619,12 +619,14 @@ end
 
 -- Custom
 local balatro_types = {}
+local balatro_types_reverse = {}
 for key, value in pairs(_G) do
    if (key == "V") or (key == "G") or (not key:match("^%u")) or (type(value) ~= "table") then
       goto continue
    end
    if value.is then
       balatro_types[key] = value
+      balatro_types_reverse[value] = key
    end
    ::continue::
 end
@@ -633,10 +635,8 @@ end
 local function _type(x)
    -- Custom
    if (x.is) then
-      for key, value in pairs(balatro_types) do
-         if getmetatable(x) == value then
-            return key
-         end
+      if balatro_types_reverse[getmetatable(x)] ~= nil then
+         return key
       end
    end
 
